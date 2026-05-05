@@ -13,6 +13,9 @@ export function SiteFooter() {
             <p className="text-ink/70 mt-3 max-w-xs text-sm">
               Live well, longer.
             </p>
+            <p className="text-ink/50 mt-4 text-xs">
+              Operated by Yelow Sp. z o.o.
+            </p>
           </div>
 
           {/* Pillars */}
@@ -30,7 +33,7 @@ export function SiteFooter() {
             </ul>
           </div>
 
-          {/* About + Subscribe */}
+          {/* Guide Kin links */}
           <div>
             <p className="text-ink/50 text-xs font-medium uppercase tracking-wider">
               Guide Kin
@@ -38,6 +41,8 @@ export function SiteFooter() {
             <ul className="mt-4 space-y-2 text-sm">
               <li><Link href="/about" className="text-ink hover:text-sage">About</Link></li>
               <li><Link href="/subscribe" className="text-ink hover:text-sage">Subscribe</Link></li>
+              <li><Link href="/privacy" className="text-ink hover:text-sage">Privacy</Link></li>
+              <li><Link href="/terms" className="text-ink hover:text-sage">Terms</Link></li>
             </ul>
           </div>
         </div>
