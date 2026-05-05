@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Resend } from "resend";
+import { render } from "@react-email/render";
 import { createSupabaseAdmin } from "@/lib/supabase";
+import WelcomeEmail from "@/emails/welcome-email";
 
 const VALID_PILLARS = ["body", "mind", "glow", "roam", "bonds", "years"];
 
@@ -23,7 +26,7 @@ export async function POST(request: NextRequest) {
       consent_sms?: boolean;
     };
 
-    // Basic validation
+    // Validation
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json(
         { error: "Please enter your name." },
@@ -38,7 +41,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // At least one channel of consent must be given
     if (!consent_email && !consent_sms) {
       return NextResponse.json(
         {
@@ -49,7 +51,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If they consented to SMS, they must have given a phone number
     if (consent_sms && (!phone || phone.trim().length === 0)) {
       return NextResponse.json(
         {
@@ -60,12 +61,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate pillars (drop any unknown values silently)
     const validPillars = Array.isArray(pillars)
       ? pillars.filter((p) => VALID_PILLARS.includes(p))
       : [];
 
-    // Capture consent metadata for audit trail
     const ip =
       request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
       request.headers.get("x-real-ip") ||
@@ -75,12 +74,13 @@ export async function POST(request: NextRequest) {
 
     const supabase = createSupabaseAdmin();
 
-    // Upsert: if email already exists, update the existing row.
-    // This means re-submitting the form updates preferences, not duplicates.
-    const { error } = await supabase.from("subscribers").upsert(
+    const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
+
+    const { error: dbError } = await supabase.from("subscribers").upsert(
       {
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
+        name: cleanName,
+        email: cleanEmail,
         phone: phone?.trim() || null,
         pillars: validPillars,
         consent_email: !!consent_email,
@@ -94,12 +94,59 @@ export async function POST(request: NextRequest) {
       { onConflict: "email" }
     );
 
-    if (error) {
-      console.error("Supabase insert error:", error);
+    if (dbError) {
+      console.error("Supabase insert error:", dbError);
       return NextResponse.json(
-        { error: "Something went wrong saving your subscription. Please try again." },
+        {
+          error:
+            "Something went wrong saving your subscription. Please try again.",
+        },
         { status: 500 }
       );
+    }
+
+   // Send welcome email if they consented to email
+    console.log("📧 Email block reached. consent_email:", consent_email);
+
+    if (consent_email) {
+      const resendApiKey = process.env.RESEND_API_KEY;
+      const fromAddress =
+        process.env.RESEND_FROM_ADDRESS || "Guide Kin <onboarding@resend.dev>";
+
+      console.log("📧 RESEND_API_KEY present?", !!resendApiKey, "starts with:", resendApiKey?.slice(0, 5));
+      console.log("📧 fromAddress:", fromAddress);
+
+      if (!resendApiKey) {
+        // Don't fail the subscription if email is misconfigured — just log it.
+        console.error("RESEND_API_KEY is not set. Welcome email not sent.");
+      } else {
+        try {
+          const resend = new Resend(resendApiKey);
+
+          const html = await render(
+            WelcomeEmail({
+              name: cleanName,
+              pillars: validPillars,
+              emailConsent: !!consent_email,
+              smsConsent: !!consent_sms,
+            })
+          );
+
+          const { error: emailError } = await resend.emails.send({
+            from: fromAddress,
+            to: cleanEmail,
+            subject: "Welcome to Guide Kin",
+            html,
+          });
+
+          if (emailError) {
+            console.error("Resend send error:", emailError);
+            // Subscription succeeded, email failed — don't block user.
+          }
+        } catch (err) {
+          console.error("Resend exception:", err);
+        }
+      }
     }
 
     return NextResponse.json({ success: true });
