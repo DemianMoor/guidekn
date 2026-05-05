@@ -14,14 +14,64 @@ const PILLARS = [
   { slug: "years", name: "Years" },
 ];
 
+type SubmitState =
+  | { status: "idle" }
+  | { status: "submitting" }
+  | { status: "success" }
+  | { status: "error"; message: string };
+
 export default function SubscribePage() {
   const [smsOpen, setSmsOpen] = useState(false);
   const [pillars, setPillars] = useState<string[]>([]);
+  const [submit, setSubmit] = useState<SubmitState>({ status: "idle" });
 
   const togglePillar = (slug: string) => {
     setPillars((prev) =>
       prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]
     );
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    console.log("handleSubmit fired");
+    setSubmit({ status: "submitting" });
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    const payload = {
+      name: formData.get("name"),
+      email: formData.get("email"),
+      phone: formData.get("phone") || null,
+      pillars,
+      consent_email: formData.get("consent_email") === "on",
+      consent_sms: formData.get("consent_sms") === "on",
+    };
+
+    try {
+      const res = await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setSubmit({
+          status: "error",
+          message: data.error || "Something went wrong. Please try again.",
+        });
+        return;
+      }
+
+      setSubmit({ status: "success" });
+    } catch {
+      setSubmit({
+        status: "error",
+        message: "Something went wrong. Please check your connection and try again.",
+      });
+    }
   };
 
   const dividerStyle: React.CSSProperties = {
@@ -30,12 +80,46 @@ export default function SubscribePage() {
     marginBottom: "2rem",
   };
 
+  if (submit.status === "success") {
+    return (
+      <>
+        <SiteHeader />
+        <main>
+          <section className="bg-cream border-b border-stone">
+            <div className="mx-auto max-w-2xl px-6 py-24 text-center md:py-32">
+              <p className="text-sage text-xs font-medium uppercase tracking-[0.2em]">
+                You&apos;re in
+              </p>
+              <h1 className="text-ink mt-6 font-serif text-4xl font-medium leading-[1.1] tracking-tight md:text-5xl">
+                Welcome to your kin.
+              </h1>
+              <p className="text-ink/75 mx-auto mt-6 max-w-xl leading-relaxed">
+                We&apos;ve got you on the list. The first thing you&apos;ll
+                hear from us is a short welcome email — keep an eye on your
+                inbox over the next few minutes. After that, expect one
+                quiet email a week.
+              </p>
+              <div className="mt-10">
+                <Link
+                  href="/"
+                  className="bg-sage inline-block rounded-full px-7 py-3 text-sm text-white hover:opacity-90"
+                >
+                  Back to Guide Kin
+                </Link>
+              </div>
+            </div>
+          </section>
+        </main>
+        <SiteFooter />
+      </>
+    );
+  }
+
   return (
     <>
       <SiteHeader />
 
       <main>
-        {/* Hero — tightened */}
         <section className="bg-cream border-b border-stone">
           <div className="mx-auto max-w-3xl px-6 py-12 text-center md:py-16">
             <p className="text-sage text-xs font-medium uppercase tracking-[0.2em]">
@@ -51,14 +135,12 @@ export default function SubscribePage() {
           </div>
         </section>
 
-        {/* Form */}
         <section className="bg-cream">
           <div className="mx-auto max-w-2xl px-6 py-10 md:py-14">
             <form
+              onSubmit={handleSubmit}
               className="bg-white border-stone rounded-2xl border p-6 shadow-sm md:p-10"
-              onSubmit={(e) => e.preventDefault()}
             >
-              {/* Part A: Who you are */}
               <p className="text-sage text-xs font-medium uppercase tracking-[0.2em]">
                 Who you are
               </p>
@@ -111,7 +193,6 @@ export default function SubscribePage() {
 
               <div style={dividerStyle} />
 
-              {/* Part B: Pillars — simplified */}
               <p className="text-sage text-xs font-medium uppercase tracking-[0.2em]">
                 What do you want to read about?
               </p>
@@ -148,7 +229,6 @@ export default function SubscribePage() {
 
               <div style={dividerStyle} />
 
-              {/* Part C: Channel consent */}
               <p className="text-sage text-xs font-medium uppercase tracking-[0.2em]">
                 How should we reach you?
               </p>
@@ -183,7 +263,6 @@ export default function SubscribePage() {
                 </label>
               </div>
 
-              {/* SMS disclosure (collapsible) */}
               <div
                 style={{
                   borderTop: "1px solid #D3D1C7",
@@ -194,7 +273,7 @@ export default function SubscribePage() {
                 <button
                   type="button"
                   onClick={() => setSmsOpen(!smsOpen)}
-                  className="text-ink/80 hover:text-sage flex items-center gap-2 text-sm"
+                  className="text-ink/80 hover:text-sage flex cursor-pointer items-center gap-2 text-sm"
                   aria-expanded={smsOpen}
                 >
                   <span
@@ -234,12 +313,18 @@ export default function SubscribePage() {
                 )}
               </div>
 
-              {/* Submit — placed close, like v0 */}
+              {submit.status === "error" && (
+                <div className="bg-mist border-amber/40 mt-6 rounded-xl border p-4 text-sm text-ink">
+                  {submit.message}
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="bg-sage mt-6 w-full rounded-full px-6 py-4 text-base text-white hover:opacity-90"
+                disabled={submit.status === "submitting"}
+                className="bg-sage mt-6 w-full cursor-pointer rounded-full px-6 py-4 text-base text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Join the list
+                {submit.status === "submitting" ? "Joining..." : "Join the list"}
               </button>
 
               <p className="text-ink/60 mt-4 text-center text-xs leading-relaxed">
@@ -258,7 +343,6 @@ export default function SubscribePage() {
           </div>
         </section>
 
-        {/* Trust band */}
         <section className="bg-mist border-y border-stone">
           <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
             <p className="text-sage text-xs font-medium uppercase tracking-[0.2em]">
