@@ -19,8 +19,42 @@ export async function PATCH(
   const { id } = await params;
   const body = await request.json();
 
-  // Build the update — only include fields that were provided
   const updates: Record<string, unknown> = {};
+
+  // Slug changes need uniqueness check
+  if (typeof body.slug === "string") {
+    const cleanSlug = body.slug
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 100);
+
+    if (cleanSlug.length === 0) {
+      return NextResponse.json(
+        { error: "Slug can't be empty." },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createSupabaseAdmin();
+    const { data: existing } = await supabase
+      .from("articles")
+      .select("id")
+      .eq("slug", cleanSlug)
+      .neq("id", id)
+      .maybeSingle();
+
+    if (existing) {
+      return NextResponse.json(
+        { error: "That slug is already used by another article." },
+        { status: 400 }
+      );
+    }
+
+    updates.slug = cleanSlug;
+  }
 
   if (typeof body.title === "string") updates.title = body.title.trim();
   if (typeof body.dek === "string") updates.dek = body.dek.trim();
@@ -54,7 +88,6 @@ export async function PATCH(
     updates.status = body.status;
   }
 
-  // Handle scheduled/published timestamps
   if (body.published_at === null) {
     updates.published_at = null;
   } else if (typeof body.published_at === "string") {

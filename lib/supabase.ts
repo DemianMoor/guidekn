@@ -66,3 +66,19 @@ export function createSupabaseAdmin() {
     },
   });
 }
+/**
+ * Fetch all site settings as a key-value map.
+ * Used by marketing pages to get current hero images, bios, etc.
+ */
+export async function getSiteSettings(): Promise<Record<string, string>> {
+  const supabase = createSupabaseAdmin();
+  const { data } = await supabase.from("site_settings").select("key, value");
+
+  const settings: Record<string, string> = {};
+  if (data) {
+    for (const row of data) {
+      if (row.value) settings[row.key] = row.value;
+    }
+  }
+  return settings;
+}

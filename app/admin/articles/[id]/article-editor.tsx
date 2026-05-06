@@ -4,6 +4,18 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+// Convert ISO string to the format datetime-local input expects
+function toLocalDatetimeInput(isoString: string): string {
+  const d = new Date(isoString);
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 const PILLARS = [
   { slug: "body", name: "Body" },
   { slug: "mind", name: "Mind" },
@@ -41,8 +53,8 @@ type SaveState =
 export function ArticleEditor({ article: initial }: { article: Article }) {
   const router = useRouter();
 
-  // Form state — local copies of every editable field
   const [title, setTitle] = useState(initial.title);
+  const [slug, setSlug] = useState(initial.slug);
   const [dek, setDek] = useState(initial.dek ?? "");
   const [body, setBody] = useState(initial.body);
   const [byline, setByline] = useState(initial.byline);
@@ -50,21 +62,21 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
   const [imageUrl, setImageUrl] = useState(initial.image_url ?? "");
   const [imageAlt, setImageAlt] = useState(initial.image_alt ?? "");
   const [imageCredit, setImageCredit] = useState(initial.image_credit ?? "");
+  const [customDate, setCustomDate] = useState(
+    initial.published_at ? toLocalDatetimeInput(initial.published_at) : ""
+  );
 
-  // Save state
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [status, setStatus] = useState(initial.status);
-  const [publishedAt, setPublishedAt] = useState<string | null>(
-    initial.published_at
-  );
+  const [publishedAt, setPublishedAt] = useState<string | null>(initial.published_at);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("");
   const [showDelete, setShowDelete] = useState(false);
 
-  // Track if anything changed
   const initialJSON = useRef(
     JSON.stringify({
       title: initial.title,
+      slug: initial.slug,
       dek: initial.dek ?? "",
       body: initial.body,
       byline: initial.byline,
@@ -72,11 +84,13 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
       image_url: initial.image_url ?? "",
       image_alt: initial.image_alt ?? "",
       image_credit: initial.image_credit ?? "",
+      published_at: initial.published_at,
     })
   );
 
   const currentJSON = JSON.stringify({
     title,
+    slug,
     dek,
     body,
     byline,
@@ -84,11 +98,11 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
     image_url: imageUrl,
     image_alt: imageAlt,
     image_credit: imageCredit,
+    published_at: customDate ? new Date(customDate).toISOString() : null,
   });
 
   const hasChanges = currentJSON !== initialJSON.current;
 
-  // Autosave: 2 seconds after the last change
   useEffect(() => {
     if (!hasChanges) return;
     const timer = setTimeout(async () => {
@@ -108,6 +122,7 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: title.trim(),
+          slug: slug.trim(),
           dek: dek.trim(),
           body,
           byline: byline.trim(),
@@ -115,6 +130,9 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
           image_url: imageUrl.trim() || null,
           image_alt: imageAlt.trim(),
           image_credit: imageCredit.trim() || null,
+          published_at: customDate
+            ? new Date(customDate).toISOString()
+            : null,
         }),
       });
 
@@ -128,6 +146,7 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
       }
 
       initialJSON.current = currentJSON;
+      if (data.article?.slug) setSlug(data.article.slug);
       setSaveState({ kind: "saved", at: Date.now() });
       return true;
     } catch {
@@ -140,7 +159,6 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
   }
 
   async function changeStatus(newStatus: Article["status"], scheduledFor?: string) {
-    // Save current edits first
     const ok = await save({ silent: true });
     if (!ok) return;
 
@@ -148,7 +166,9 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
 
     const payload: Record<string, unknown> = { status: newStatus };
     if (newStatus === "published" && !scheduledFor) {
-      payload.published_at = new Date().toISOString();
+      payload.published_at = customDate
+        ? new Date(customDate).toISOString()
+        : new Date().toISOString();
     } else if (newStatus === "scheduled" && scheduledFor) {
       payload.published_at = scheduledFor;
     } else if (newStatus === "draft" || newStatus === "archived") {
@@ -173,6 +193,11 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
 
       setStatus(data.article.status);
       setPublishedAt(data.article.published_at);
+      if (data.article.published_at) {
+        setCustomDate(toLocalDatetimeInput(data.article.published_at));
+      } else {
+        setCustomDate("");
+      }
       setSaveState({ kind: "saved", at: Date.now() });
       setScheduleOpen(false);
       router.refresh();
@@ -195,7 +220,6 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
     router.push("/admin/articles");
   }
 
-  // Status pill styles
   const statusStyles: Record<string, string> = {
     draft: "bg-stone/40 text-ink/70",
     scheduled: "bg-amber/20 text-amber",
@@ -205,7 +229,6 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
 
   return (
     <div>
-      {/* Top bar with status + actions */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-stone border-b pb-6">
         <div>
           <p className="text-sage text-xs font-medium uppercase tracking-[0.2em]">
@@ -216,9 +239,7 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
           </p>
           <div className="mt-2 flex items-center gap-3">
             <span
-              className={`rounded-full px-3 py-1 text-xs capitalize ${
-                statusStyles[status]
-              }`}
+              className={`rounded-full px-3 py-1 text-xs capitalize ${statusStyles[status]}`}
             >
               {status}
             </span>
@@ -262,7 +283,7 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
           {status === "published" && (
             <>
               <Link
-                href={`/${pillar}/${initial.slug}`}
+                href={`/${pillar}/${slug}`}
                 target="_blank"
                 rel="noopener"
                 className="text-ink hover:border-sage hover:text-sage rounded-full border border-stone px-4 py-2 text-sm"
@@ -288,7 +309,6 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
         </div>
       </div>
 
-      {/* Schedule modal */}
       {scheduleOpen && (
         <div className="bg-mist border-stone mt-4 rounded-2xl border p-5">
           <p className="text-ink text-sm font-medium">Schedule for later</p>
@@ -329,11 +349,8 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
         </p>
       )}
 
-      {/* Editor body */}
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
-        {/* Main content */}
         <div className="bg-white border-stone rounded-2xl border p-6 md:p-8 lg:col-span-2">
-          {/* Title */}
           <label className="block">
             <span className="text-ink/60 text-xs font-medium uppercase tracking-wider">
               Title
@@ -347,7 +364,6 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
             />
           </label>
 
-          {/* Dek */}
           <label className="mt-6 block">
             <span className="text-ink/60 text-xs font-medium uppercase tracking-wider">
               Dek (subhead)
@@ -361,7 +377,6 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
             />
           </label>
 
-          {/* Body */}
           <label className="mt-6 block">
             <span className="text-ink/60 text-xs font-medium uppercase tracking-wider">
               Body (markdown)
@@ -380,9 +395,7 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
           </label>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Pillar + byline */}
           <div className="bg-white border-stone rounded-2xl border p-6">
             <p className="text-ink/60 text-xs font-medium uppercase tracking-wider">
               Metadata
@@ -413,12 +426,49 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
               />
             </label>
 
-            <p className="text-ink/60 mt-4 text-xs">
-              Slug: <code className="text-ink/80">{initial.slug}</code>
-            </p>
+            <label className="mt-4 block">
+              <span className="text-ink text-xs font-medium">URL slug</span>
+              <input
+                type="text"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                className="border-stone text-ink mt-2 w-full rounded-xl border bg-white px-3 py-2 text-sm focus:border-sage focus:outline-none"
+              />
+              <p className="text-ink/60 mt-1 text-xs">
+                URL: <code className="text-ink/80">/{pillar}/{slug}</code>
+              </p>
+              {status === "published" && slug !== initial.slug && (
+                <p className="text-amber mt-2 text-xs">
+                  Warning: changing the slug breaks links already shared with
+                  the old URL.
+                </p>
+              )}
+            </label>
+
+            <label className="mt-4 block">
+              <span className="text-ink text-xs font-medium">Publish date</span>
+              <input
+                type="datetime-local"
+                value={customDate}
+                onChange={(e) => setCustomDate(e.target.value)}
+                className="border-stone text-ink mt-2 w-full rounded-xl border bg-white px-3 py-2 text-sm focus:border-sage focus:outline-none"
+              />
+              <p className="text-ink/60 mt-1 text-xs">
+                Leave blank to use the current time when you click Publish.
+                Set a past date to backdate; future dates schedule for later.
+              </p>
+              {customDate && (
+                <button
+                  type="button"
+                  onClick={() => setCustomDate("")}
+                  className="text-amber hover:text-sage mt-2 cursor-pointer text-xs"
+                >
+                  Clear date
+                </button>
+              )}
+            </label>
           </div>
 
-          {/* Hero image */}
           <div className="bg-white border-stone rounded-2xl border p-6">
             <p className="text-ink/60 text-xs font-medium uppercase tracking-wider">
               Hero image
@@ -477,7 +527,6 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
             )}
           </div>
 
-          {/* Manual save + delete */}
           <div className="bg-white border-stone rounded-2xl border p-6">
             <button
               onClick={() => save()}
@@ -502,7 +551,6 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
         </div>
       </div>
 
-      {/* Delete confirm */}
       {showDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-6">
           <div className="bg-white border-stone w-full max-w-md rounded-2xl border p-6 md:p-8">

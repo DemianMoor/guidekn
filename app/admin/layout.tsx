@@ -63,6 +63,18 @@ export default async function AdminLayout({
             >
               Subscribers
             </Link>
+            <Link
+              href="/admin/subscribers"
+              className="text-ink hover:bg-mist block rounded-lg px-3 py-2"
+            >
+              Subscribers
+            </Link>
+            <Link
+              href="/admin/site-images"
+              className="text-ink hover:bg-mist block rounded-lg px-3 py-2"
+            >
+              Site Images
+            </Link>
           </nav>
         </aside>
 

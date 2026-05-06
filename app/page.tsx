@@ -18,14 +18,25 @@ const pillars = [
 export default async function Home() {
   const supabase = createSupabaseAdmin();
 
-  // Fetch the 4 most recent published articles
-  const { data: articles } = await supabase
-    .from("articles")
-    .select("title, slug, pillar, dek, byline, image_url, image_alt, published_at")
-    .eq("status", "published")
-    .order("published_at", { ascending: false })
-    .limit(4);
+  // Fetch settings + articles in parallel
+  const [settingsRes, articlesRes] = await Promise.all([
+    supabase.from("site_settings").select("key, value"),
+    supabase
+      .from("articles")
+      .select("title, slug, pillar, dek, byline, image_url, image_alt, published_at")
+      .eq("status", "published")
+      .order("published_at", { ascending: false })
+      .limit(4),
+  ]);
 
+  const settings: Record<string, string> = {};
+  if (settingsRes.data) {
+    for (const row of settingsRes.data) {
+      if (row.value) settings[row.key] = row.value;
+    }
+  }
+
+  const articles = articlesRes.data;
   const featured = articles?.[0] || null;
   const rest = articles?.slice(1, 4) || [];
   const hasArticles = articles && articles.length > 0;
@@ -36,8 +47,21 @@ export default async function Home() {
 
       <main>
         {/* Hero */}
-        <section className="bg-cream relative overflow-hidden border-b border-stone">
-          <div className="mx-auto max-w-4xl px-6 py-24 text-center md:py-32">
+        <section className="relative overflow-hidden border-b border-stone">
+          {settings.homepage_hero_image ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={settings.homepage_hero_image}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-cream/70 backdrop-blur-[2px]" />
+            </>
+          ) : (
+            <div className="absolute inset-0 bg-cream" />
+          )}
+          <div className="relative mx-auto max-w-4xl px-6 py-24 text-center md:py-32">
             <p className="text-sage text-xs font-medium uppercase tracking-[0.2em]">
               A community for adults 35 and up
             </p>
