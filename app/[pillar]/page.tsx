@@ -1,4 +1,4 @@
-export const revalidate = 0;
+export const dynamic = "force-dynamic";
 
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -43,9 +43,6 @@ const pillarIntros: Record<PillarSlug, { headline: string; intro: string }> = {
   },
 };
 
-export function generateStaticParams() {
-  return allPillars.map((pillar) => ({ pillar }));
-}
 
 export async function generateMetadata({
   params,
