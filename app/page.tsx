@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { ArticleImage } from "@/components/article-image";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { PILLARS } from "@/lib/brand-voice";
 
@@ -159,20 +160,7 @@ export default async function Home() {
                 href={`/${featured.pillar}/${featured.slug}`}
                 className="group mt-10 grid gap-8 border-b border-stone pb-12 md:grid-cols-2"
               >
-                <div className="bg-mist border-stone aspect-[4/3] overflow-hidden rounded-2xl border">
-                  {featured.image_url ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={featured.image_url}
-                      alt={featured.image_alt || featured.title}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="text-ink/40 flex h-full items-center justify-center p-8 text-center text-xs italic">
-                      {featured.image_alt || PILLARS[featured.pillar as keyof typeof PILLARS]?.name}
-                    </div>
-                  )}
-                </div>
+                <ArticleImage article={featured} aspectClass="aspect-[4/3]" />
                 <div className="flex flex-col justify-center">
                   <p className="text-sage text-xs font-medium uppercase tracking-[0.2em]">
                     {PILLARS[featured.pillar as keyof typeof PILLARS]?.name}
@@ -193,20 +181,7 @@ export default async function Home() {
               <div className="mt-12 grid gap-10 md:grid-cols-3">
                 {rest.map((a) => (
                   <Link key={a.slug} href={`/${a.pillar}/${a.slug}`} className="group">
-                    <div className="bg-mist border-stone aspect-[4/3] overflow-hidden rounded-2xl border">
-                      {a.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={a.image_url}
-                          alt={a.image_alt || a.title}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="text-ink/40 flex h-full items-center justify-center p-6 text-center text-xs italic">
-                          {a.image_alt || PILLARS[a.pillar as keyof typeof PILLARS]?.name}
-                        </div>
-                      )}
-                    </div>
+                    <ArticleImage article={a} aspectClass="aspect-[4/3]" />
                     <p className="text-sage mt-4 text-xs font-medium uppercase tracking-[0.2em]">
                       {PILLARS[a.pillar as keyof typeof PILLARS]?.name}
                     </p>
