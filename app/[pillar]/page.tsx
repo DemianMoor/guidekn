@@ -2,114 +2,44 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { createSupabaseAdmin } from "@/lib/supabase";
+import { PILLARS, type PillarSlug } from "@/lib/brand-voice";
 
-type Article = {
-  slug: string;
-  title: string;
-  dek: string;
-  byline: string;
-  imageAlt: string;
-  featured?: boolean;
-};
+const allPillars = Object.keys(PILLARS) as PillarSlug[];
 
-type PillarContent = {
-  name: string;
-  headline: string;
-  intro: string;
-  articles: Article[];
-};
-
-const pillarData: Record<string, PillarContent> = {
+// Pillar landing copy (homepage-style intro per pillar)
+const pillarIntros: Record<PillarSlug, { headline: string; intro: string }> = {
   body: {
-    name: "Body",
     headline: "Strength, sleep, and moving for the long road.",
     intro:
       "What the research actually says about staying strong, mobile, and energetic — at every stage. Strength training in your 50s, sleep that works in your 60s, the supplements worth talking to your doctor about and the ones that aren't.",
-    articles: [
-      {
-        slug: "hips-not-knees",
-        featured: true,
-        title: "Why your hips, not your knees, decide how you'll move at 70",
-        dek: "The orthopedic research no one talks about: hip mobility quietly governs almost every movement that matters later. Here's what the evidence says, and the simple work that actually pays off.",
-        byline: "Dr. Elena Park",
-        imageAlt:
-          "Person in their fifties doing a deep hip-opening stretch on a wooden floor, sunlit room",
-      },
-      {
-        slug: "strength-training-for-gym-haters",
-        title: "The strength training program for people who hate gyms",
-        dek: "Three days a week, no commute, nothing fancy. The plan a sports physiologist would actually recommend if you asked him over coffee.",
-        byline: "Theo Williams",
-        imageAlt: "Two adjustable dumbbells on a hardwood floor next to running shoes",
-      },
-      {
-        slug: "sleep-after-45",
-        title: "Sleep after 45: what changes, and what helps",
-        dek: "Why your sleep architecture shifts in midlife, what's normal, and the small adjustments that move the needle without medication.",
-        byline: "Maya Okafor",
-        imageAlt: "Linen bedsheets in soft morning light, an open paperback face-down",
-      },
-      {
-        slug: "supplements-worth-it",
-        title: "On supplements: the four worth the money, and the rest",
-        dek: "We read the studies so you don't have to. A short, plainspoken guide to what your doctor would probably tell you in a longer appointment.",
-        byline: "Dr. Elena Park",
-        imageAlt: "Small wooden bowl holding capsules and tablets on a kitchen counter",
-      },
-      {
-        slug: "walking-is-underrated",
-        title: "Walking is underrated. Here's the case.",
-        dek: "The most quietly powerful thing you can do for your body is also the cheapest, simplest, and easiest to keep doing for thirty more years.",
-        byline: "Theo Williams",
-        imageAlt: "Person walking on a tree-lined path at golden hour, mid-stride",
-      },
-      {
-        slug: "mobility-eight-minutes",
-        title: "Mobility work that takes 8 minutes a day",
-        dek: "A short routine built around the joints that age fastest. Designed to be done in your kitchen, in socks, before the kettle boils.",
-        byline: "Ines Marchetti",
-        imageAlt: "Bare feet on a yoga mat in a sunlit kitchen with a kettle on the stove",
-      },
-    ],
   },
   mind: {
-    name: "Mind",
     headline: "Clarity, focus, and peace of mind.",
     intro:
       "Cognitive health, focus, stress, the quiet kind of mental health that doesn't get talked about enough. Practical writing on what helps and what doesn't, sourced and specific.",
-    articles: [],
   },
   glow: {
-    name: "Glow",
     headline: "Looking like yourself, only better.",
     intro:
       "Skincare, style, and presentation — playful, confident, never aspirational-shaming. The point isn't to look younger. The point is to look like yourself, on a good day.",
-    articles: [],
   },
   roam: {
-    name: "Roam",
     headline: "Travel that earns the trip.",
     intro:
       "Vivid, sensory, practical writing on travel that's worth the time off. Where to go, when, what to actually do when you get there.",
-    articles: [],
   },
   bonds: {
-    name: "Bonds",
     headline: "The relationships that matter.",
     intro:
       "Honest, tender, non-judgmental writing on partners, friendships, family, and the relationships you build at this stage of life.",
-    articles: [],
   },
   years: {
-    name: "Years",
     headline: "Living well, longer.",
     intro:
       "Matter-of-fact, optimistic writing about getting older — money, purpose, planning, and the things nobody told you to think about until now.",
-    articles: [],
   },
 };
-
-const allPillars = Object.keys(pillarData);
 
 export function generateStaticParams() {
   return allPillars.map((pillar) => ({ pillar }));
@@ -121,10 +51,10 @@ export async function generateMetadata({
   params: Promise<{ pillar: string }>;
 }) {
   const { pillar } = await params;
-  if (!(pillar in pillarData)) return {};
-  const data = pillarData[pillar];
+  if (!(pillar in PILLARS)) return {};
+  const data = pillarIntros[pillar as PillarSlug];
   return {
-    title: `${data.name} — Guide Kin`,
+    title: PILLARS[pillar as PillarSlug].name,
     description: data.headline,
   };
 }
@@ -136,14 +66,26 @@ export default async function PillarPage({
 }) {
   const { pillar } = await params;
 
-  if (!(pillar in pillarData)) {
+  if (!(pillar in PILLARS)) {
     notFound();
   }
 
-  const data = pillarData[pillar];
-  const featured = data.articles.find((a) => a.featured);
-  const rest = data.articles.filter((a) => !a.featured);
-  const otherPillars = allPillars.filter((p) => p !== pillar);
+  const pillarSlug = pillar as PillarSlug;
+  const data = pillarIntros[pillarSlug];
+  const otherPillars = allPillars.filter((p) => p !== pillarSlug);
+
+  // Fetch published articles for this pillar
+  const supabase = createSupabaseAdmin();
+  const { data: articles } = await supabase
+    .from("articles")
+    .select("title, slug, dek, byline, image_url, image_alt, published_at")
+    .eq("pillar", pillar)
+    .eq("status", "published")
+    .order("published_at", { ascending: false });
+
+  const hasArticles = articles && articles.length > 0;
+  const featured = articles?.[0] || null;
+  const rest = articles?.slice(1) || [];
 
   return (
     <>
@@ -154,7 +96,7 @@ export default async function PillarPage({
         <section className="bg-cream border-b border-stone">
           <div className="mx-auto max-w-3xl px-6 py-24 text-center md:py-32">
             <p className="text-sage text-xs font-medium uppercase tracking-[0.2em]">
-              {data.name}
+              {PILLARS[pillarSlug].name}
             </p>
             <h1 className="text-ink mt-6 font-serif text-4xl font-medium leading-[1.1] tracking-tight md:text-6xl">
               {data.headline}
@@ -165,20 +107,29 @@ export default async function PillarPage({
           </div>
         </section>
 
-        {/* Articles or Empty State */}
-        {data.articles.length > 0 ? (
+        {/* Articles or empty state */}
+        {hasArticles ? (
           <section className="bg-cream border-b border-stone">
             <div className="mx-auto max-w-6xl px-6 py-20 md:py-24">
               {/* Featured */}
               {featured && (
                 <Link
-                  href="#"
+                  href={`/${pillar}/${featured.slug}`}
                   className="group grid gap-8 border-b border-stone pb-16 md:grid-cols-2 md:gap-12"
                 >
                   <div className="bg-mist border-stone aspect-[4/3] overflow-hidden rounded-2xl border">
-                    <div className="text-ink/40 flex h-full items-center justify-center p-8 text-center text-xs italic">
-                      {featured.imageAlt}
-                    </div>
+                    {featured.image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={featured.image_url}
+                        alt={featured.image_alt || featured.title}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="text-ink/40 flex h-full items-center justify-center p-8 text-center text-xs italic">
+                        {featured.image_alt || PILLARS[pillarSlug].name}
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col justify-center">
                     <p className="text-amber text-xs font-medium uppercase tracking-[0.2em]">
@@ -187,12 +138,10 @@ export default async function PillarPage({
                     <h2 className="text-ink group-hover:text-sage mt-3 font-serif text-3xl font-medium leading-tight tracking-tight md:text-4xl">
                       {featured.title}
                     </h2>
-                    <p className="text-ink/75 mt-4 leading-relaxed">
-                      {featured.dek}
-                    </p>
-                    <p className="text-ink/60 mt-6 text-sm">
-                      By {featured.byline}
-                    </p>
+                    {featured.dek && (
+                      <p className="text-ink/75 mt-4 leading-relaxed">{featured.dek}</p>
+                    )}
+                    <p className="text-ink/60 mt-6 text-sm">By {featured.byline}</p>
                     <span className="text-amber group-hover:text-sage mt-6 inline-block text-sm">
                       Read the piece →
                     </span>
@@ -203,29 +152,32 @@ export default async function PillarPage({
               {/* Article grid */}
               {rest.length > 0 && (
                 <div className="mt-16 grid gap-10 md:grid-cols-2 md:gap-12 lg:grid-cols-3">
-                  {rest.map((article) => (
-                    <Link
-                      key={article.slug}
-                      href="#"
-                      className="group"
-                    >
+                  {rest.map((a) => (
+                    <Link key={a.slug} href={`/${pillar}/${a.slug}`} className="group">
                       <div className="bg-mist border-stone aspect-[4/3] overflow-hidden rounded-2xl border">
-                        <div className="text-ink/40 flex h-full items-center justify-center p-6 text-center text-xs italic">
-                          {article.imageAlt}
-                        </div>
+                        {a.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={a.image_url}
+                            alt={a.image_alt || a.title}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="text-ink/40 flex h-full items-center justify-center p-6 text-center text-xs italic">
+                            {a.image_alt || PILLARS[pillarSlug].name}
+                          </div>
+                        )}
                       </div>
                       <p className="text-sage mt-4 text-xs font-medium uppercase tracking-[0.2em]">
-                        {data.name}
+                        {PILLARS[pillarSlug].name}
                       </p>
                       <h3 className="text-ink group-hover:text-sage mt-2 font-serif text-xl font-medium leading-snug tracking-tight">
-                        {article.title}
+                        {a.title}
                       </h3>
-                      <p className="text-ink/70 mt-2 text-sm leading-relaxed">
-                        {article.dek}
-                      </p>
-                      <p className="text-ink/60 mt-3 text-xs">
-                        By {article.byline}
-                      </p>
+                      {a.dek && (
+                        <p className="text-ink/70 mt-2 text-sm leading-relaxed">{a.dek}</p>
+                      )}
+                      <p className="text-ink/60 mt-3 text-xs">By {a.byline}</p>
                     </Link>
                   ))}
                 </div>
@@ -241,26 +193,21 @@ export default async function PillarPage({
                   Coming soon
                 </p>
                 <h2 className="text-ink mt-4 font-serif text-2xl font-medium leading-tight tracking-tight md:text-3xl">
-                  We&apos;re still writing the first pieces for {data.name}.
+                  We&apos;re still writing the first pieces for{" "}
+                  {PILLARS[pillarSlug].name}.
                 </h2>
                 <p className="text-ink/75 mt-4 leading-relaxed">
                   Join your kin and we&apos;ll send them when they&apos;re
                   ready. One quiet email, no spam, unsubscribe in one tap.
                 </p>
-                <form className="mx-auto mt-8 flex max-w-md flex-col gap-2 sm:flex-row">
-                  <input
-                    type="email"
-                    placeholder="Email address"
-                    required
-                    className="text-ink placeholder:text-ink/50 border-stone flex-1 rounded-full border bg-white px-5 py-3 text-sm focus:outline-none"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-amber rounded-full px-6 py-3 text-sm text-white hover:opacity-90"
+                <div className="mt-8">
+                  <Link
+                    href="/subscribe"
+                    className="bg-sage inline-block rounded-full px-6 py-3 text-sm text-white hover:opacity-90"
                   >
                     Join the list
-                  </button>
-                </form>
+                  </Link>
+                </div>
               </div>
             </div>
           </section>
@@ -282,14 +229,14 @@ export default async function PillarPage({
                   href={`/${p}`}
                   className="text-ink hover:bg-sage hover:border-sage rounded-full border border-stone bg-white px-5 py-2 text-sm hover:text-white"
                 >
-                  {pillarData[p].name}
+                  {PILLARS[p].name}
                 </Link>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Newsletter (same as homepage) */}
+        {/* Newsletter */}
         <section className="bg-sage">
           <div className="mx-auto max-w-3xl px-6 py-20 text-center">
             <p className="text-mist text-xs font-medium uppercase tracking-[0.2em]">
@@ -302,20 +249,14 @@ export default async function PillarPage({
               A short, useful read every Sunday morning. Something to think
               about for the week, and one thing worth your time.
             </p>
-            <form className="mx-auto mt-8 flex max-w-md flex-col gap-2 sm:flex-row">
-              <input
-                type="email"
-                placeholder="Email address"
-                className="text-ink placeholder:text-ink/50 flex-1 rounded-full bg-white px-5 py-3 text-sm focus:outline-none"
-                required
-              />
-              <button
-                type="submit"
-                className="bg-amber rounded-full px-6 py-3 text-sm text-white hover:opacity-90"
+            <p className="mt-8">
+              <Link
+                href="/subscribe"
+                className="bg-amber inline-block rounded-full px-6 py-3 text-sm text-white hover:opacity-90"
               >
                 Join the list
-              </button>
-            </form>
+              </Link>
+            </p>
             <p className="text-mist/70 mt-4 text-xs">
               Free, always. Unsubscribe in one tap.
             </p>
