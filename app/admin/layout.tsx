@@ -58,10 +58,10 @@ export default async function AdminLayout({
               Articles
             </Link>
             <Link
-              href="/admin/subscribers"
+              href="/admin/articles/import"
               className="text-ink hover:bg-mist block rounded-lg px-3 py-2"
             >
-              Subscribers
+              Import
             </Link>
             <Link
               href="/admin/subscribers"
