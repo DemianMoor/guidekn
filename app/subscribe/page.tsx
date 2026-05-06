@@ -302,7 +302,7 @@ export default function SubscribePage() {
                     get one confirmation message and then no further
                     texts. See our{" "}
                     <Link href="/terms" className="text-amber hover:text-sage">
-                      Terms of Service
+                      SMS Terms
                     </Link>{" "}
                     and{" "}
                     <Link href="/privacy" className="text-amber hover:text-sage">
@@ -330,7 +330,7 @@ export default function SubscribePage() {
               <p className="text-ink/60 mt-4 text-center text-xs leading-relaxed">
                 By signing up you agree to our{" "}
                 <Link href="/terms" className="text-amber hover:text-sage">
-                  Terms of Service
+                  SMS Terms
                 </Link>{" "}
                 and{" "}
                 <Link href="/privacy" className="text-amber hover:text-sage">

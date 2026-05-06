@@ -42,7 +42,7 @@ export function SiteFooter() {
               <li><Link href="/about" className="text-ink hover:text-sage">About</Link></li>
               <li><Link href="/subscribe" className="text-ink hover:text-sage">Subscribe</Link></li>
               <li><Link href="/privacy" className="text-ink hover:text-sage">Privacy</Link></li>
-              <li><Link href="/terms" className="text-ink hover:text-sage">Terms</Link></li>
+              <li><Link href="/terms" className="text-ink hover:text-sage">SMS Terms</Link></li>
             </ul>
           </div>
         </div>
