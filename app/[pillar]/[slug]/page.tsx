@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { ArticleImage } from "@/components/article-image";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { PILLARS } from "@/lib/brand-voice";
 
@@ -86,7 +87,7 @@ export default async function ArticlePage({
   // Find 2 related articles in the same pillar
   const { data: related } = await supabase
     .from("articles")
-    .select("title, slug, dek, byline, image_url, image_alt")
+    .select("title, slug, dek, byline, image_url, image_alt, pillar")
     .eq("pillar", pillar)
     .eq("status", "published")
     .neq("id", article.id)
@@ -136,34 +137,21 @@ export default async function ArticlePage({
             </div>
           </header>
 
-          {/* Hero image (or placeholder) */}
-          {article.image_url ? (
-            <div className="bg-mist border-b border-stone">
-              <div className="mx-auto max-w-5xl px-6 py-12">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={article.image_url}
-                  alt={article.image_alt || article.title}
-                  className="aspect-[4/3] w-full rounded-2xl object-cover md:aspect-[16/9]"
-                />
-                {article.image_credit && (
-                  <p className="text-ink/50 mt-3 text-xs italic">
-                    {article.image_credit}
-                  </p>
-                )}
-              </div>
+          {/* Hero image (or pillar placeholder) */}
+          <div className="bg-mist border-b border-stone">
+            <div className="mx-auto max-w-5xl px-6 py-12">
+              <ArticleImage
+                article={article}
+                aspectClass="aspect-[4/3] md:aspect-[16/9]"
+                className="bg-cream border-stone overflow-hidden rounded-2xl border"
+              />
+              {article.image_credit && (
+                <p className="text-ink/50 mt-3 text-xs italic">
+                  {article.image_credit}
+                </p>
+              )}
             </div>
-          ) : article.image_alt ? (
-            <div className="bg-mist border-b border-stone">
-              <div className="mx-auto max-w-5xl px-6 py-12">
-                <div className="bg-cream border-stone aspect-[16/9] overflow-hidden rounded-2xl border">
-                  <div className="text-ink/40 flex h-full items-center justify-center p-8 text-center text-xs italic">
-                    {article.image_alt}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
+          </div>
 
           {/* Body */}
           <div className="mx-auto max-w-3xl px-6 py-12 md:py-16">
@@ -201,20 +189,11 @@ export default async function ArticlePage({
                     href={`/${pillar}/${r.slug}`}
                     className="group"
                   >
-                    <div className="bg-cream border-stone aspect-[4/3] overflow-hidden rounded-2xl border">
-                      {r.image_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={r.image_url}
-                          alt={r.image_alt || r.title}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="text-ink/40 flex h-full items-center justify-center p-6 text-center text-xs italic">
-                          {r.image_alt || pillarData.name}
-                        </div>
-                      )}
-                    </div>
+                    <ArticleImage
+                      article={r}
+                      aspectClass="aspect-[4/3]"
+                      className="bg-cream border-stone overflow-hidden rounded-2xl border"
+                    />
                     <h3 className="text-ink group-hover:text-sage mt-4 font-serif text-lg font-medium leading-snug tracking-tight">
                       {r.title}
                     </h3>
