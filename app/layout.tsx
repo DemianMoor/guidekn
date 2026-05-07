@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
+import { PopupProvider } from "@/lib/popup-context";
+import { SubscribePopup } from "@/components/subscribe-popup";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -50,7 +52,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${sourceSerif.variable}`}>
-      <body>{children}</body>
+      <body>
+        <PopupProvider>
+          {children}
+          <SubscribePopup />
+        </PopupProvider>
+      </body>
     </html>
   );
 }

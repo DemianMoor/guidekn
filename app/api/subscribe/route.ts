@@ -17,6 +17,8 @@ export async function POST(request: NextRequest) {
       pillars,
       consent_email,
       consent_sms,
+      tcpa_accepted,
+      source,
     } = body as {
       name?: string;
       email?: string;
@@ -24,15 +26,14 @@ export async function POST(request: NextRequest) {
       pillars?: string[];
       consent_email?: boolean;
       consent_sms?: boolean;
+      tcpa_accepted?: boolean;
+      source?: string;
     };
 
-    // Validation
-    if (!name || typeof name !== "string" || name.trim().length === 0) {
-      return NextResponse.json(
-        { error: "Please enter your name." },
-        { status: 400 }
-      );
-    }
+    // The popup form sends `tcpa_accepted` instead of separate consent flags.
+    // Treat it as email consent (TCPA covers electronic marketing).
+    const effectiveConsentEmail = consent_email ?? !!tcpa_accepted;
+    const effectiveConsentSms = !!consent_sms;
 
     if (!email || typeof email !== "string" || !email.includes("@")) {
       return NextResponse.json(
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!consent_email && !consent_sms) {
+    if (!effectiveConsentEmail && !effectiveConsentSms) {
       return NextResponse.json(
         {
           error:
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (consent_sms && (!phone || phone.trim().length === 0)) {
+    if (effectiveConsentSms && (!phone || phone.trim().length === 0)) {
       return NextResponse.json(
         {
           error:
@@ -60,6 +61,14 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Name is optional — popup-sourced subscribers don't supply one.
+    // Fall back to the email's local-part so downstream code (e.g. welcome
+    // email greeting) always has something to render.
+    const rawName =
+      name && typeof name === "string" && name.trim().length > 0
+        ? name.trim()
+        : email.split("@")[0];
 
     const validPillars = Array.isArray(pillars)
       ? pillars.filter((p) => VALID_PILLARS.includes(p))
@@ -74,8 +83,12 @@ export async function POST(request: NextRequest) {
 
     const supabase = createSupabaseAdmin();
 
-    const cleanName = name.trim();
+    const cleanName = rawName;
     const cleanEmail = email.trim().toLowerCase();
+
+    if (source) {
+      console.log(`Subscribe source: ${source} (email=${cleanEmail})`);
+    }
 
     const { error: dbError } = await supabase.from("subscribers").upsert(
       {
@@ -83,10 +96,10 @@ export async function POST(request: NextRequest) {
         email: cleanEmail,
         phone: phone?.trim() || null,
         pillars: validPillars,
-        consent_email: !!consent_email,
-        consent_sms: !!consent_sms,
-        consent_email_at: consent_email ? now : null,
-        consent_sms_at: consent_sms ? now : null,
+        consent_email: effectiveConsentEmail,
+        consent_sms: effectiveConsentSms,
+        consent_email_at: effectiveConsentEmail ? now : null,
+        consent_sms_at: effectiveConsentSms ? now : null,
         consent_ip: ip,
         consent_user_agent: userAgent,
         status: "active",
@@ -106,9 +119,9 @@ export async function POST(request: NextRequest) {
     }
 
    // Send welcome email if they consented to email
-    console.log("📧 Email block reached. consent_email:", consent_email);
+    console.log("📧 Email block reached. consent_email:", effectiveConsentEmail);
 
-    if (consent_email) {
+    if (effectiveConsentEmail) {
       const resendApiKey = process.env.RESEND_API_KEY;
       const fromAddress =
         process.env.RESEND_FROM_ADDRESS || "Guide Kin <onboarding@resend.dev>";
@@ -127,8 +140,8 @@ export async function POST(request: NextRequest) {
             WelcomeEmail({
               name: cleanName,
               pillars: validPillars,
-              emailConsent: !!consent_email,
-              smsConsent: !!consent_sms,
+              emailConsent: effectiveConsentEmail,
+              smsConsent: effectiveConsentSms,
             })
           );
 
