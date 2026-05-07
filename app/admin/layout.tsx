@@ -75,6 +75,12 @@ export default async function AdminLayout({
             >
               Site Images
             </Link>
+            <Link
+              href="/admin/landing-pages"
+              className="text-ink hover:bg-mist block rounded-lg px-3 py-2"
+            >
+              Landing pages
+            </Link>
           </nav>
         </aside>
 
