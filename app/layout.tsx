@@ -3,6 +3,7 @@ import { Inter, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { PopupProvider } from "@/lib/popup-context";
 import { SubscribePopup } from "@/components/subscribe-popup";
+import { Analytics } from "@/components/analytics";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -57,6 +58,7 @@ export default function RootLayout({
           {children}
           <SubscribePopup />
         </PopupProvider>
+        <Analytics />
       </body>
     </html>
   );
