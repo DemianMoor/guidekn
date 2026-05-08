@@ -4,11 +4,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { PickProduct } from "@/lib/picks-types";
 
-declare global {
-  interface Window {
-    dataLayer?: Record<string, unknown>[];
-  }
-}
+// Window.dataLayer is declared globally in components/analytics.tsx
 
 export function ProductCard({
   product,
