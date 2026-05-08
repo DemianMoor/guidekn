@@ -2,21 +2,49 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
+
+type Mode = "password" | "otp";
 
 type State =
   | { kind: "idle" }
-  | { kind: "sending" }
+  | { kind: "submitting" }
   | { kind: "sent" }
   | { kind: "error"; message: string };
 
 export default function SignInPage() {
+  const router = useRouter();
+  const [mode, setMode] = useState<Mode>("password");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function handlePasswordSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setState({ kind: "sending" });
+    setState({ kind: "submitting" });
+
+    const supabase = createSupabaseBrowserClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (error) {
+      setState({
+        kind: "error",
+        message: error.message || "Couldn't sign in. Check your credentials.",
+      });
+      return;
+    }
+
+    router.push("/admin");
+    router.refresh();
+  }
+
+  async function handleOtpSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setState({ kind: "submitting" });
 
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.signInWithOtp({
@@ -29,13 +57,21 @@ export default function SignInPage() {
     if (error) {
       setState({
         kind: "error",
-        message: error.message || "Couldn't send the sign-in email. Try again.",
+        message: error.message || "Couldn't send the sign-in email.",
       });
       return;
     }
 
     setState({ kind: "sent" });
-  };
+  }
+
+  function switchMode(next: Mode) {
+    setMode(next);
+    setState({ kind: "idle" });
+    setPassword("");
+  }
+
+  const submitting = state.kind === "submitting";
 
   return (
     <main className="bg-cream flex min-h-screen items-center justify-center px-6 py-20">
@@ -51,8 +87,9 @@ export default function SignInPage() {
           Sign in to the editor.
         </h1>
         <p className="text-ink/70 mt-3 text-sm">
-          Enter your email and we&apos;ll send you a sign-in link. No password
-          to remember.
+          {mode === "password"
+            ? "Use your email and password."
+            : "Enter your email and we'll send you a sign-in link."}
         </p>
 
         {state.kind === "sent" ? (
@@ -60,11 +97,11 @@ export default function SignInPage() {
             <p className="text-sage text-sm font-medium">Check your inbox</p>
             <p className="text-ink/80 mt-2 text-sm leading-relaxed">
               We sent a sign-in link to <strong>{email}</strong>. The link
-              works for one hour. If you don&apos;t see it, check spam.
+              works for one hour.
             </p>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+        ) : mode === "password" ? (
+          <form onSubmit={handlePasswordSubmit} className="mt-8 space-y-4">
             <div>
               <label
                 htmlFor="email"
@@ -79,25 +116,117 @@ export default function SignInPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="you@example.com"
-                disabled={state.kind === "sending"}
+                disabled={submitting}
+                autoComplete="email"
+                className="border-stone text-ink placeholder:text-ink/40 focus:border-sage mt-2 w-full rounded-xl border bg-white px-4 py-3 focus:outline-none disabled:opacity-60"
+              />
+            </div>
+
+            <div>
+              <div className="flex items-baseline justify-between">
+                <label
+                  htmlFor="password"
+                  className="text-ink block text-sm font-medium"
+                >
+                  Password
+                </label>
+                <Link
+                  href="/admin/forgot-password"
+                  className="text-amber hover:text-sage text-xs"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={submitting}
+                autoComplete="current-password"
                 className="border-stone text-ink placeholder:text-ink/40 focus:border-sage mt-2 w-full rounded-xl border bg-white px-4 py-3 focus:outline-none disabled:opacity-60"
               />
             </div>
 
             {state.kind === "error" && (
-              <div className="bg-mist border-amber/40 rounded-xl border p-4 text-sm text-ink">
+              <div
+                className="bg-mist border-amber/40 rounded-xl border p-4 text-sm text-ink"
+                role="alert"
+              >
                 {state.message}
               </div>
             )}
 
             <button
               type="submit"
-              disabled={state.kind === "sending"}
+              disabled={submitting}
               className="bg-sage w-full cursor-pointer rounded-full px-6 py-3 text-sm text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {state.kind === "sending" ? "Sending..." : "Send sign-in link"}
+              {submitting ? "Signing in..." : "Sign in"}
             </button>
           </form>
+        ) : (
+          <form onSubmit={handleOtpSubmit} className="mt-8 space-y-4">
+            <div>
+              <label
+                htmlFor="email-otp"
+                className="text-ink block text-sm font-medium"
+              >
+                Email
+              </label>
+              <input
+                type="email"
+                id="email-otp"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                placeholder="you@example.com"
+                disabled={submitting}
+                autoComplete="email"
+                className="border-stone text-ink placeholder:text-ink/40 focus:border-sage mt-2 w-full rounded-xl border bg-white px-4 py-3 focus:outline-none disabled:opacity-60"
+              />
+            </div>
+
+            {state.kind === "error" && (
+              <div
+                className="bg-mist border-amber/40 rounded-xl border p-4 text-sm text-ink"
+                role="alert"
+              >
+                {state.message}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="bg-sage w-full cursor-pointer rounded-full px-6 py-3 text-sm text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {submitting ? "Sending..." : "Send sign-in link"}
+            </button>
+          </form>
+        )}
+
+        {state.kind !== "sent" && (
+          <div className="border-stone mt-6 border-t pt-6 text-center">
+            {mode === "password" ? (
+              <button
+                type="button"
+                onClick={() => switchMode("otp")}
+                className="text-ink/60 hover:text-sage cursor-pointer text-xs"
+              >
+                Email me a sign-in link instead
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => switchMode("password")}
+                className="text-ink/60 hover:text-sage cursor-pointer text-xs"
+              >
+                Sign in with password instead
+              </button>
+            )}
+          </div>
         )}
 
         <p className="text-ink/60 mt-8 text-center text-xs">
