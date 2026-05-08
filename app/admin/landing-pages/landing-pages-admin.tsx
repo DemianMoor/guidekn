@@ -3,10 +3,48 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import JSZip from "jszip";
+import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 const MAX_FILE_COUNT = 200;
-const PER_FILE_LIMIT_BYTES = 4.4 * 1024 * 1024; // Vercel cap is 4.5 MB; leave headroom
+// Files go browser -> Supabase via a signed URL, so Vercel's 4.5 MB body
+// limit no longer applies. Cap matches the bucket's per-file limit
+// configured in Supabase (currently 10 MB; raise the bucket setting first
+// before raising this).
+const PER_FILE_LIMIT_BYTES = 10 * 1024 * 1024;
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{0,80}$/;
+
+const MIME_TYPES: Record<string, string> = {
+  html: "text/html; charset=utf-8",
+  htm: "text/html; charset=utf-8",
+  css: "text/css; charset=utf-8",
+  js: "application/javascript; charset=utf-8",
+  mjs: "application/javascript; charset=utf-8",
+  json: "application/json; charset=utf-8",
+  svg: "image/svg+xml",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  ico: "image/x-icon",
+  woff: "font/woff",
+  woff2: "font/woff2",
+  ttf: "font/ttf",
+  otf: "font/otf",
+  eot: "application/vnd.ms-fontobject",
+  mp4: "video/mp4",
+  webm: "video/webm",
+  mp3: "audio/mpeg",
+  pdf: "application/pdf",
+  txt: "text/plain; charset=utf-8",
+  xml: "application/xml; charset=utf-8",
+  map: "application/json; charset=utf-8",
+};
+
+function getMimeType(filename: string): string {
+  const ext = filename.split(".").pop()?.toLowerCase() ?? "";
+  return MIME_TYPES[ext] ?? "application/octet-stream";
+}
 
 type ExtractedFile = { path: string; data: ArrayBuffer; size: number };
 
@@ -34,7 +72,7 @@ async function extractBundle(file: File): Promise<ExtractionResult> {
       throw new Error(
         `File too large (${(file.size / 1024 / 1024).toFixed(
           1
-        )} MB). Per-file limit is ~4.4 MB.`
+        )} MB). Per-file limit is ${PER_FILE_LIMIT_BYTES / 1024 / 1024} MB (Supabase bucket setting).`
       );
     }
     const safeName = file.name.toLowerCase().endsWith(".htm")
@@ -87,7 +125,7 @@ async function extractBundle(file: File): Promise<ExtractionResult> {
     throw new Error(
       `"${tooBig.path}" is ${(tooBig.size / 1024 / 1024).toFixed(
         1
-      )} MB. Per-file limit is ~4.4 MB. Compress or split it.`
+      )} MB. Per-file limit is ${PER_FILE_LIMIT_BYTES / 1024 / 1024} MB (matches the Supabase bucket setting). Compress or raise the bucket limit.`
     );
   }
 
@@ -268,28 +306,52 @@ function UploadForm({ onSuccess }: { onSuccess: () => void }) {
         return;
       }
 
-      // 3. Upload each file individually. Roll back on any failure.
+      // 3. Upload each file directly to Supabase Storage via a signed URL.
+      //    Browser -> Supabase, no Vercel hop, so the per-file size cap is
+      //    the bucket setting rather than Vercel's 4.5 MB body limit.
       setProgress({ done: 0, total: files.length });
+      const supabase = createSupabaseBrowserClient();
       for (let i = 0; i < files.length; i++) {
         const f = files[i];
-        const fd = new FormData();
-        fd.append("file", new File([f.data], f.path));
-        fd.append("path", f.path);
-        const res = await fetch(
-          `/api/admin/landing-pages/${slug}/files`,
-          { method: "POST", body: fd }
+
+        // 3a. Ask the server to sign an upload URL for this path
+        const signRes = await fetch(
+          `/api/admin/landing-pages/${slug}/files/sign`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ path: f.path }),
+          }
         );
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          // Roll back: delete the slug + any files already uploaded
+        const signData = await signRes.json().catch(() => ({}));
+        if (!signRes.ok) {
           await fetch(`/api/admin/landing-pages/${slug}`, {
             method: "DELETE",
           });
           setError(
-            `Failed to upload "${f.path}": ${err.error || res.status}. No partial bundle was kept.`
+            `Failed to sign upload URL for "${f.path}": ${signData.error || signRes.status}. No partial bundle was kept.`
           );
           return;
         }
+
+        // 3b. Upload the bytes directly to Supabase
+        const blob = new Blob([f.data], { type: getMimeType(f.path) });
+        const { error: uploadError } = await supabase.storage
+          .from("landing-pages")
+          .uploadToSignedUrl(signData.path, signData.token, blob, {
+            contentType: getMimeType(f.path),
+          });
+
+        if (uploadError) {
+          await fetch(`/api/admin/landing-pages/${slug}`, {
+            method: "DELETE",
+          });
+          setError(
+            `Failed to upload "${f.path}": ${uploadError.message}. No partial bundle was kept.`
+          );
+          return;
+        }
+
         setProgress({ done: i + 1, total: files.length });
       }
 
