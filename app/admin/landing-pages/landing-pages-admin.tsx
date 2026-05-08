@@ -171,9 +171,11 @@ function UploadForm({ onSuccess }: { onSuccess: () => void }) {
           }
           placeholder="spring-promo"
           required
-          pattern="^[a-z0-9][a-z0-9-]{0,80}$"
           className="w-full border border-stone rounded-md px-3 py-2 text-sm bg-white"
         />
+        <p className="text-ink/50 text-xs mt-1">
+          Lowercase letters, digits, and hyphens only.
+        </p>
       </div>
 
       <div>
