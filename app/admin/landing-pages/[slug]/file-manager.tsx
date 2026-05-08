@@ -513,6 +513,8 @@ function AddFileForm({
   const [file, setFile] = useState<File | null>(null);
   const [path, setPath] = useState("");
   const [busy, setBusy] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-fill the target path with the picked file's name (no nested folders)
   useEffect(() => {
@@ -555,37 +557,75 @@ function AddFileForm({
   return (
     <form
       onSubmit={handleAdd}
-      className="border border-stone rounded-lg bg-white p-4 flex flex-wrap gap-3 items-end"
+      className="border border-stone rounded-lg bg-white p-4 space-y-3"
     >
-      <div className="flex-1 min-w-[180px]">
-        <label className="text-ink/70 text-xs uppercase tracking-wide block mb-1">
-          New file
-        </label>
-        <input
-          type="file"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="text-sm block"
-        />
-      </div>
-      <div className="flex-1 min-w-[200px]">
-        <label className="text-ink/70 text-xs uppercase tracking-wide block mb-1">
-          Path inside bundle
-        </label>
-        <input
-          type="text"
-          value={path}
-          onChange={(e) => setPath(e.target.value)}
-          placeholder="images/new-hero.png"
-          className="bg-white border border-stone rounded-md px-3 py-2 text-sm font-mono w-full"
-        />
-      </div>
-      <button
-        type="submit"
-        disabled={!file || busy}
-        className="bg-sage text-cream px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-50"
+      <p className="text-ink/70 text-xs uppercase tracking-wide">Add file</p>
+
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          const dropped = e.dataTransfer.files?.[0];
+          if (dropped) setFile(dropped);
+        }}
+        onClick={() => inputRef.current?.click()}
+        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition ${
+          isDragging
+            ? "border-sage bg-mist"
+            : "border-stone bg-cream hover:border-sage/60"
+        }`}
       >
-        {busy ? "Adding..." : "Add"}
-      </button>
+        <input
+          ref={inputRef}
+          type="file"
+          className="hidden"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        />
+        {file ? (
+          <div>
+            <p className="text-ink font-medium mb-1 truncate">{file.name}</p>
+            <p className="text-xs text-ink/60">
+              {(file.size / 1024).toFixed(1)} KB &middot; click or drag to replace
+            </p>
+          </div>
+        ) : (
+          <div>
+            <p className="text-ink text-sm mb-1">
+              Drop a file here, or click to browse
+            </p>
+            <p className="text-xs text-ink/60">
+              Image, font, script, or any other asset
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex-1 min-w-[200px]">
+          <label className="text-ink/70 text-xs uppercase tracking-wide block mb-1">
+            Path inside bundle
+          </label>
+          <input
+            type="text"
+            value={path}
+            onChange={(e) => setPath(e.target.value)}
+            placeholder="images/new-hero.png"
+            className="bg-white border border-stone rounded-md px-3 py-2 text-sm font-mono w-full"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={!file || busy}
+          className="bg-sage text-cream px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {busy ? "Adding..." : "Add file"}
+        </button>
+      </div>
     </form>
   );
 }

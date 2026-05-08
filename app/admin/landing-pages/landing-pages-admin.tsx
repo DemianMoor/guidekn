@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import JSZip from "jszip";
@@ -419,23 +419,14 @@ function UploadForm({ onSuccess }: { onSuccess: () => void }) {
         />
       </div>
 
-      <div>
-        <label className="text-ink/70 text-xs uppercase tracking-wide block mb-1">
-          File (.zip bundle or single .html)
-        </label>
-        <input
-          type="file"
-          accept=".zip,.html,.htm"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          required
-          className="w-full text-sm"
-        />
-        {file && (
-          <p className="text-ink/60 text-xs mt-1">
-            {file.name} ({(file.size / 1024).toFixed(1)} KB)
-          </p>
-        )}
-      </div>
+      <FileDropZone
+        label="File (.zip bundle or single .html)"
+        accept=".zip,.html,.htm"
+        file={file}
+        onPick={setFile}
+        promptText="Drop your .zip bundle or .html here, or click to browse"
+        hintText=".zip with assets or a single .html file"
+      />
 
       {error && (
         <p className="text-red-700 text-sm" role="alert">
@@ -532,5 +523,72 @@ function DeleteButton({
     >
       Delete
     </button>
+  );
+}
+
+function FileDropZone({
+  label,
+  accept,
+  file,
+  onPick,
+  promptText,
+  hintText,
+}: {
+  label: string;
+  accept?: string;
+  file: File | null;
+  onPick: (file: File | null) => void;
+  promptText: string;
+  hintText?: string;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  return (
+    <div>
+      <label className="text-ink/70 text-xs uppercase tracking-wide block mb-2">
+        {label}
+      </label>
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+          const dropped = e.dataTransfer.files?.[0];
+          if (dropped) onPick(dropped);
+        }}
+        onClick={() => inputRef.current?.click()}
+        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition ${
+          isDragging
+            ? "border-sage bg-mist"
+            : "border-stone bg-white hover:border-sage/60 hover:bg-cream"
+        }`}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => onPick(e.target.files?.[0] ?? null)}
+        />
+        {file ? (
+          <div>
+            <p className="text-ink font-medium mb-1 truncate">{file.name}</p>
+            <p className="text-sm text-ink/60">
+              {(file.size / 1024).toFixed(1)} KB &middot; click or drag to replace
+            </p>
+          </div>
+        ) : (
+          <div>
+            <p className="text-ink mb-1">{promptText}</p>
+            {hintText && <p className="text-sm text-ink/60">{hintText}</p>}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
