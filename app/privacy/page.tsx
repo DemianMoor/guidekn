@@ -64,6 +64,12 @@ export default function PrivacyPage() {
                 </a>
               </p>
               <p>
+                <strong>Phone:</strong>{" "}
+                <a href="tel:+15407397346" className="text-amber hover:text-sage">
+                  +1 (540) 739-7346
+                </a>
+              </p>
+              <p>
                 <strong>Address:</strong> Warszawska 6 / 32, 15-063
                 Bialystok, Podlaskie, Poland
               </p>
@@ -483,6 +489,12 @@ export default function PrivacyPage() {
                 <strong>Email:</strong>{" "}
                 <a href="mailto:hello@guidekn.com" className="text-amber hover:text-sage">
                   hello@guidekn.com
+                </a>
+              </p>
+              <p>
+                <strong>Phone:</strong>{" "}
+                <a href="tel:+15407397346" className="text-amber hover:text-sage">
+                  +1 (540) 739-7346
                 </a>
               </p>
               <p className="text-ink/70 mt-12">

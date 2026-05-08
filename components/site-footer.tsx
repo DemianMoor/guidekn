@@ -13,6 +13,14 @@ export function SiteFooter() {
             <p className="text-ink/70 mt-3 max-w-xs text-sm">
               Live well, longer.
             </p>
+            <p className="text-ink/70 mt-4 text-sm">
+              <a
+                href="tel:+15407397346"
+                className="hover:text-sage"
+              >
+                (540) 739-7346
+              </a>
+            </p>
             <p className="text-ink/50 mt-4 text-xs">
               Operated by Yelow Sp. z o.o.
             </p>
