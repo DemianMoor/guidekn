@@ -38,12 +38,20 @@ export default async function PicksAdminPage() {
           </p>
         </div>
 
-        <Link
-          href="/admin/picks/new"
-          className="bg-sage mt-2 rounded-full px-5 py-2.5 text-sm text-white hover:opacity-90 whitespace-nowrap"
-        >
-          + New pick
-        </Link>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Link
+            href="/admin/picks/import"
+            className="text-ink hover:border-sage hover:text-sage rounded-full border border-stone px-4 py-2.5 text-sm whitespace-nowrap"
+          >
+            Bulk import
+          </Link>
+          <Link
+            href="/admin/picks/new"
+            className="bg-sage rounded-full px-5 py-2.5 text-sm text-white hover:opacity-90 whitespace-nowrap"
+          >
+            + New pick
+          </Link>
+        </div>
       </div>
 
       {error && (
