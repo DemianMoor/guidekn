@@ -64,6 +64,12 @@ export default async function AdminLayout({
               Import
             </Link>
             <Link
+              href="/admin/picks"
+              className="text-ink hover:bg-mist block rounded-lg px-3 py-2"
+            >
+              Picks
+            </Link>
+            <Link
               href="/admin/subscribers"
               className="text-ink hover:bg-mist block rounded-lg px-3 py-2"
             >
