@@ -100,7 +100,7 @@ export async function POST(
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ slug: string }> }
 ) {
   const editor = await getCurrentEditor();
@@ -109,20 +109,64 @@ export async function GET(
   }
 
   const { slug } = await context.params;
+  const recursive = req.nextUrl.searchParams.get("recursive") === "true";
   const supabase = createSupabaseAdmin();
 
-  const { data: files, error } = await supabase.storage
-    .from("landing-pages")
-    .list(slug, {
-      limit: 1000,
-      sortBy: { column: "name", order: "asc" },
-    });
+  if (!recursive) {
+    const { data: files, error } = await supabase.storage
+      .from("landing-pages")
+      .list(slug, {
+        limit: 1000,
+        sortBy: { column: "name", order: "asc" },
+      });
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ files: files ?? [] });
   }
 
-  return NextResponse.json({ files: files ?? [] });
+  // Walk subfolders. Supabase Storage returns folder placeholders with a null
+  // metadata field; real files have a metadata object with size/mimetype.
+  type FlatFile = { path: string; size: number; contentType?: string };
+  const out: FlatFile[] = [];
+
+  async function walk(prefix: string): Promise<void> {
+    const full = prefix ? `${slug}/${prefix}` : slug;
+    const { data: items, error: listError } = await supabase.storage
+      .from("landing-pages")
+      .list(full, {
+        limit: 1000,
+        sortBy: { column: "name", order: "asc" },
+      });
+    if (listError) {
+      throw new Error(listError.message);
+    }
+    for (const item of items ?? []) {
+      const childPath = prefix ? `${prefix}/${item.name}` : item.name;
+      if (item.metadata) {
+        out.push({
+          path: childPath,
+          size: (item.metadata as { size?: number }).size ?? 0,
+          contentType: (item.metadata as { mimetype?: string }).mimetype,
+        });
+      } else {
+        await walk(childPath);
+      }
+    }
+  }
+
+  try {
+    await walk("");
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "List failed" },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json({ files: out });
 }
 
 export async function DELETE(

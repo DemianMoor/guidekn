@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import JSZip from "jszip";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
@@ -239,6 +240,12 @@ export default function LandingPagesAdmin({
                     {new Date(p.updated_at).toLocaleString()}
                   </td>
                   <td className="px-4 py-3 space-x-2 whitespace-nowrap">
+                    <Link
+                      href={`/admin/landing-pages/${p.slug}`}
+                      className="text-xs text-sage hover:text-amber"
+                    >
+                      Edit files
+                    </Link>
                     <ToggleButton
                       page={p}
                       onChange={() => router.refresh()}
