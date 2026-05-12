@@ -9,9 +9,9 @@ import { createSupabaseBrowserClient } from "@/lib/supabase";
 const MAX_FILE_COUNT = 200;
 // Files go browser -> Supabase via a signed URL, so Vercel's 4.5 MB body
 // limit no longer applies. Cap matches the bucket's per-file limit
-// configured in Supabase (currently 10 MB; raise the bucket setting first
+// configured in Supabase (currently 50 MB; raise the bucket setting first
 // before raising this).
-const PER_FILE_LIMIT_BYTES = 10 * 1024 * 1024;
+const PER_FILE_LIMIT_BYTES = 50 * 1024 * 1024;
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{0,80}$/;
 
 const MIME_TYPES: Record<string, string> = {
