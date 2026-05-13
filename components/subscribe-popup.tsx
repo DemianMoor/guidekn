@@ -287,10 +287,12 @@ export function SubscribePopup() {
                     className="accent-sage mt-1 h-4 w-4 flex-shrink-0"
                   />
                   <span className="text-ink/85 text-xs leading-relaxed">
-                    I consent to receive marketing and editorial SMS messages
-                    from Guide Kin (operated by Yelow Sp. z o.o.) at the phone
-                    number I provided above. Frequency varies, typically one
-                    message per week.
+                    By providing your phone number and checking this box, you
+                    are consenting to receive marketing text messages to that
+                    number from Guide Kin. Message frequency varies. Message
+                    and data rates may apply. Text HELP for help. Text STOP to
+                    unsubscribe. SMS opt-in data will not be shared or sold
+                    with 3rd parties.
                   </span>
                 </label>
               </div>
