@@ -7,14 +7,25 @@ import { usePopupContext } from "@/lib/popup-context";
 
 const SESSION_SHOWN_KEY = "gk_popup_shown_this_session";
 const SUBSCRIBED_KEY = "gk_subscribed";
-const TIMER_DELAY_MS = 5000;
+const TIMER_DELAY_DEFAULT_MS = 10000;
+const TIMER_DELAY_ARTICLE_MS = 30000;
 
 const EXCLUDED_PATH_PREFIXES = ["/admin", "/auth", "/api"];
 const EXCLUDED_EXACT_PATHS = ["/subscribe"];
+const PILLAR_SLUGS = ["body", "mind", "glow", "roam", "bonds", "years"];
 
 function isExcludedPath(pathname: string): boolean {
   if (EXCLUDED_EXACT_PATHS.includes(pathname)) return true;
   return EXCLUDED_PATH_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+function isArticlePath(pathname: string): boolean {
+  const segments = pathname.split("/").filter(Boolean);
+  return segments.length === 2 && PILLAR_SLUGS.includes(segments[0]);
+}
+
+function timerDelayFor(pathname: string): number {
+  return isArticlePath(pathname) ? TIMER_DELAY_ARTICLE_MS : TIMER_DELAY_DEFAULT_MS;
 }
 
 export function SubscribePopup() {
@@ -46,10 +57,12 @@ export function SubscribePopup() {
     if (sessionStorage.getItem(SESSION_SHOWN_KEY) === "1") return;
     if (localStorage.getItem(SUBSCRIBED_KEY) === "1") return;
 
+    const delay = timerDelayFor(pathname);
+
     function startTimer() {
       if (timerRef.current) return;
       startedAtRef.current = Date.now();
-      const remaining = TIMER_DELAY_MS - elapsedRef.current;
+      const remaining = delay - elapsedRef.current;
       timerRef.current = setTimeout(() => {
         sessionStorage.setItem(SESSION_SHOWN_KEY, "1");
         setIsOpen(true);
