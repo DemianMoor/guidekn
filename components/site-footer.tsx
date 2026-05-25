@@ -47,6 +47,7 @@ export function SiteFooter() {
               Guide Kin
             </p>
             <ul className="mt-4 space-y-2 text-sm">
+              <li><Link href="/picks" className="text-ink hover:text-sage">Picks</Link></li>
               <li><Link href="/about" className="text-ink hover:text-sage">About</Link></li>
               <li><Link href="/subscribe" className="text-ink hover:text-sage">Subscribe</Link></li>
               <li><Link href="/privacy" className="text-ink hover:text-sage">Privacy</Link></li>

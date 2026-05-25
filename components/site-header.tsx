@@ -11,6 +11,9 @@ export function SiteHeader() {
           Guide Kin
         </Link>
         <nav className="flex items-center gap-6 text-sm md:gap-8">
+          <Link href="/picks" className="text-ink hover:text-sage">
+            Picks
+          </Link>
           <Link href="/about" className="text-ink hover:text-sage">
             About
           </Link>
