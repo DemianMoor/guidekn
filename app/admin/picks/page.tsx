@@ -3,25 +3,75 @@ import { redirect } from "next/navigation";
 import { getCurrentEditor } from "@/lib/admin-auth";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { PILLARS } from "@/lib/brand-voice";
+import PicksList from "./picks-list";
+import PicksFilters from "./filters";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_STYLES: Record<string, string> = {
-  draft: "bg-stone/40 text-ink/70",
-  published: "bg-mist text-sage",
+const PAGE_SIZE = 25;
+
+type PicksSearchParams = {
+  q?: string;
+  category?: string;
+  status?: string;
+  pillar?: string;
+  page?: string;
 };
 
-export default async function PicksAdminPage() {
+export default async function PicksAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<PicksSearchParams>;
+}) {
   const editor = await getCurrentEditor();
   if (!editor) redirect("/admin/signin");
 
+  const params = await searchParams;
+  const q = params.q?.trim() ?? "";
+  const category = params.category?.trim() ?? "";
+  const status = params.status?.trim() ?? "";
+  const pillar = params.pillar?.trim() ?? "";
+  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+
   const supabase = createSupabaseAdmin();
-  const { data: picks, error } = await supabase
+
+  // Build the filtered query with an exact count so we can paginate.
+  let listQuery = supabase
     .from("picks")
     .select(
-      "id, slug, category, title, dek, status, pillars, published_at, updated_at"
+      "id, slug, category, title, dek, status, pillars, published_at, updated_at",
+      { count: "exact" }
     )
     .order("updated_at", { ascending: false });
+
+  if (q) listQuery = listQuery.ilike("title", `%${q}%`);
+  if (category) listQuery = listQuery.eq("category", category);
+  if (status === "draft" || status === "published") {
+    listQuery = listQuery.eq("status", status);
+  }
+  if (pillar && Object.keys(PILLARS).includes(pillar)) {
+    listQuery = listQuery.contains("pillars", [pillar]);
+  }
+
+  const from = (page - 1) * PAGE_SIZE;
+  const to = from + PAGE_SIZE - 1;
+
+  const [{ data: picks, error, count }, { data: categoryRows }] =
+    await Promise.all([
+      listQuery.range(from, to),
+      supabase.from("picks").select("category"),
+    ]);
+
+  const totalCount = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
+  // Distinct categories so the filter bar can offer them as a dropdown,
+  // even when the current filtered slice doesn't include all of them.
+  const allCategories = Array.from(
+    new Set((categoryRows ?? []).map((r) => r.category as string))
+  )
+    .filter(Boolean)
+    .sort();
 
   return (
     <div>
@@ -54,83 +104,21 @@ export default async function PicksAdminPage() {
         </div>
       </div>
 
+      <PicksFilters categories={allCategories} />
+
       {error && (
         <div className="bg-mist border-amber/40 mt-6 rounded-xl border p-4 text-sm text-ink">
           Couldn&apos;t load picks: {error.message}
         </div>
       )}
 
-      {picks && picks.length === 0 && (
-        <div className="bg-white border-stone mt-8 rounded-2xl border p-12 text-center">
-          <p className="text-ink/70">
-            No picks yet. Click <strong>New pick</strong> to draft your first
-            round-up.
-          </p>
-        </div>
-      )}
-
-      {picks && picks.length > 0 && (
-        <div className="bg-white border-stone mt-8 overflow-hidden rounded-2xl border">
-          <table className="w-full text-sm">
-            <thead className="bg-mist border-stone border-b">
-              <tr className="text-ink/70 text-left">
-                <th className="px-4 py-3 font-medium">Title</th>
-                <th className="px-4 py-3 font-medium">Category</th>
-                <th className="px-4 py-3 font-medium">Pillars</th>
-                <th className="px-4 py-3 font-medium">Status</th>
-                <th className="px-4 py-3 font-medium">Updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {picks.map((p) => (
-                <tr
-                  key={p.id}
-                  className="border-stone hover:bg-cream border-b last:border-0"
-                >
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/admin/picks/${p.id}/edit`}
-                      className="text-ink hover:text-sage block font-medium"
-                    >
-                      {p.title}
-                    </Link>
-                    {p.dek && (
-                      <p className="text-ink/60 mt-1 text-xs line-clamp-1">
-                        {p.dek}
-                      </p>
-                    )}
-                  </td>
-                  <td className="text-ink/80 px-4 py-3 text-xs capitalize">
-                    {p.category.replace(/-/g, " ")}
-                  </td>
-                  <td className="text-ink/70 px-4 py-3 text-xs">
-                    {(p.pillars ?? [])
-                      .map(
-                        (s: string) =>
-                          PILLARS[s as keyof typeof PILLARS]?.name ?? s
-                      )
-                      .join(", ") || (
-                      <span className="text-ink/40">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-xs">
-                    <span
-                      className={`rounded-full px-2 py-0.5 capitalize ${
-                        STATUS_STYLES[p.status] || "bg-stone text-ink/60"
-                      }`}
-                    >
-                      {p.status}
-                    </span>
-                  </td>
-                  <td className="text-ink/60 px-4 py-3 text-xs">
-                    {new Date(p.updated_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <PicksList
+        picks={picks ?? []}
+        page={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        pageSize={PAGE_SIZE}
+      />
     </div>
   );
 }
