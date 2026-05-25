@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/lib/supabase";
+import {
+  applyChromeSwap,
+  effectiveChromeState,
+} from "@/lib/landing-page-chrome";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +25,9 @@ export async function GET(
   const supabase = createSupabaseAdmin();
   const { data: page } = await supabase
     .from("landing_pages")
-    .select("slug, entry_file, is_active")
+    .select(
+      "slug, entry_file, is_active, use_site_chrome, chrome_revert_to, chrome_revert_at"
+    )
     .eq("slug", slug)
     .eq("is_active", true)
     .maybeSingle();
@@ -42,7 +48,16 @@ export async function GET(
     return new NextResponse("Failed to load landing page", { status: 502 });
   }
 
+  // Asset rewrite first so the partner's own `src=`/`href=` get pointed at
+  // Supabase Storage. Chrome swap runs next — it injects site-root-relative
+  // links (`/picks`, etc.) that we don't want the rewrite to touch. GTM last,
+  // so its scripts can't be stripped by the chrome swap.
   html = rewriteAssetPaths(html, slug);
+
+  const { effective: useSiteChrome } = effectiveChromeState(page);
+  if (useSiteChrome) {
+    html = applyChromeSwap(html).html;
+  }
 
   if (GTM_ID) {
     html = injectGtm(html, GTM_ID);

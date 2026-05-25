@@ -2,7 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentEditor } from "@/lib/admin-auth";
 import { createSupabaseAdmin } from "@/lib/supabase";
+import { effectiveChromeState } from "@/lib/landing-page-chrome";
 import FileManager from "./file-manager";
+import ChromeSettings from "./chrome-settings";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +20,19 @@ export default async function LandingPageEdit({
   const supabase = createSupabaseAdmin();
   const { data: page } = await supabase
     .from("landing_pages")
-    .select("slug, title, description, entry_file, is_active, updated_at")
+    .select(
+      "slug, title, description, entry_file, is_active, updated_at, use_site_chrome, chrome_revert_to, chrome_revert_at"
+    )
     .eq("slug", slug)
     .maybeSingle();
 
   if (!page) notFound();
+
+  const { effective, pendingRevertAt, pendingRevertTo } = effectiveChromeState({
+    use_site_chrome: page.use_site_chrome,
+    chrome_revert_to: page.chrome_revert_to,
+    chrome_revert_at: page.chrome_revert_at,
+  });
 
   return (
     <div className="max-w-6xl mx-auto py-8 px-4">
@@ -51,6 +61,17 @@ export default async function LandingPageEdit({
         >
           View page ↗
         </a>
+      </div>
+
+      <div className="mb-6">
+        <ChromeSettings
+          slug={page.slug}
+          effective={effective}
+          pendingRevertAtIso={
+            pendingRevertAt ? pendingRevertAt.toISOString() : null
+          }
+          pendingRevertTo={pendingRevertTo}
+        />
       </div>
 
       <FileManager slug={page.slug} entryFile={page.entry_file} />
