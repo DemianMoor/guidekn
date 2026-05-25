@@ -118,6 +118,29 @@ export type ChromeSwapResult = {
   footerFound: boolean;
 };
 
+// Removes partner favicon-ish <link> tags (icon, shortcut icon,
+// apple-touch-icon, mask-icon, manifest) from <head>. Manifest is included
+// because it references partner icon variants that we don't want loaded.
+function stripPartnerFavicons(root: HTMLElement): void {
+  const head = root.querySelector("head");
+  if (!head) return;
+  for (const link of head.querySelectorAll("link")) {
+    const rel = (link.getAttribute("rel") ?? "").toLowerCase();
+    if (!rel) continue;
+    const tokens = rel.split(/\s+/);
+    if (
+      tokens.includes("icon") ||
+      tokens.includes("shortcut") ||
+      tokens.includes("apple-touch-icon") ||
+      tokens.includes("apple-touch-icon-precomposed") ||
+      tokens.includes("mask-icon") ||
+      tokens.includes("manifest")
+    ) {
+      link.remove();
+    }
+  }
+}
+
 // Always injects Guide Kin chrome (per product decision). Best-effort strips
 // the partner chrome — if we can't find it, we still inject ours and report
 // the miss so the admin can investigate.
@@ -130,17 +153,20 @@ export function applyChromeSwap(html: string): ChromeSwapResult {
   const footer = findFooter(root);
   if (footer) footer.remove();
 
-  const { css, headerHtml, footerHtml } = getSiteChromeHtml();
+  stripPartnerFavicons(root);
+
+  const { css, headerHtml, footerHtml, faviconHtml } = getSiteChromeHtml();
   const styleTag = `<style data-gk-chrome="style">${css}</style>`;
+  const headInjection = faviconHtml + styleTag;
 
   let out = root.toString();
 
   const headMatch = out.match(/<head[^>]*>/i);
   if (headMatch) {
     const insertAt = headMatch.index! + headMatch[0].length;
-    out = out.substring(0, insertAt) + styleTag + out.substring(insertAt);
+    out = out.substring(0, insertAt) + headInjection + out.substring(insertAt);
   } else {
-    out = styleTag + out;
+    out = headInjection + out;
   }
 
   const bodyOpenMatch = out.match(/<body[^>]*>/i);

@@ -187,14 +187,24 @@ function footerHtml(): string {
 `.trim();
 }
 
+// Guide Kin's actual favicon assets, served by Next from app/icon.svg and
+// app/apple-icon.svg. Site-root-relative — injected AFTER rewriteAssetPaths
+// so they aren't rewritten to the Supabase Storage origin.
+const SITE_CHROME_FAVICON_HTML = `
+<link rel="icon" type="image/svg+xml" href="/icon.svg" data-gk-chrome="favicon">
+<link rel="apple-touch-icon" href="/apple-icon.svg" data-gk-chrome="favicon">
+`.trim();
+
 export function getSiteChromeHtml(): {
   css: string;
   headerHtml: string;
   footerHtml: string;
+  faviconHtml: string;
 } {
   return {
     css: SITE_CHROME_CSS,
     headerHtml: SITE_CHROME_HEADER_HTML,
     footerHtml: footerHtml(),
+    faviconHtml: SITE_CHROME_FAVICON_HTML,
   };
 }
