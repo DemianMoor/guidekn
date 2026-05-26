@@ -135,13 +135,35 @@ function rewriteAssetPaths(html: string, slug: string): string {
 
 /**
  * Forwards the landing page's incoming query string (utm_*, sub_id*, fbclid,
- * gclid, anything else marketing puts on the ad URL) to every anchor on the
- * page. Anchor's own params win on conflict so the merchant's existing
- * tracking is preserved. Runs once on DOMContentLoaded and watches for any
- * anchors added later by a framework or analytics tag.
+ * gclid, anything else marketing puts on the ad URL) to outbound navigation.
+ *
+ * Four hooks, ranked from most to least reliable:
+ *   1. <a href="..."> rewrite at DOMContentLoaded + MutationObserver for late
+ *      additions. Anchor's own params win on conflict.
+ *   2. window.open() patch — catches popup-style outbound clicks.
+ *   3. Location.prototype.assign / .replace patch — catches some same-tab
+ *      navigations. (location.href = X is a native setter and cannot be
+ *      patched from userland — that's why we also need #4.)
+ *   4. window.go_away wrap — partner script (uniscript.js / scalingurl7-style
+ *      LPs) builds the offer URL as a JS const OFFER_LINK and navigates via
+ *      location.href = OFFER_LINK. We replace go_away with a version that
+ *      decorates OFFER_LINK with our params before navigating. Falls through
+ *      to the original go_away if OFFER_LINK isn't defined.
  */
 function injectUtmForwarder(html: string): string {
-  const script = `<script>(function(){try{var src=new URLSearchParams(window.location.search);if(!src.toString())return;function decorate(a){var h=a.getAttribute('href');if(!h)return;if(/^(mailto:|tel:|javascript:|data:|#)/i.test(h))return;var u;try{u=new URL(h,window.location.href);}catch(e){return;}if(u.protocol!=='http:'&&u.protocol!=='https:')return;src.forEach(function(v,k){if(!u.searchParams.has(k))u.searchParams.set(k,v);});a.setAttribute('href',u.toString());}function all(r){var n=(r||document).querySelectorAll('a[href]');for(var i=0;i<n.length;i++)decorate(n[i]);}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){all();});}else{all();}new MutationObserver(function(ms){for(var i=0;i<ms.length;i++){var ad=ms[i].addedNodes;for(var j=0;j<ad.length;j++){var nd=ad[j];if(nd.nodeType!==1)continue;if(nd.tagName==='A')decorate(nd);else if(nd.querySelectorAll)all(nd);}}}).observe(document.documentElement,{childList:true,subtree:true});}catch(e){}})();</script>`;
+  const script = `<script>(function(){try{
+var src=new URLSearchParams(window.location.search);
+if(!src.toString())return;
+function decorate(u){try{var x=new URL(u,window.location.href);if(x.protocol!=='http:'&&x.protocol!=='https:')return u;src.forEach(function(v,k){if(!x.searchParams.has(k))x.searchParams.set(k,v);});return x.toString();}catch(e){return u;}}
+function decAnchor(a){var h=a.getAttribute('href');if(!h)return;if(/^(mailto:|tel:|javascript:|data:|#)/i.test(h))return;a.setAttribute('href',decorate(h));}
+function all(r){var n=(r||document).querySelectorAll('a[href]');for(var i=0;i<n.length;i++)decAnchor(n[i]);}
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){all();});}else{all();}
+new MutationObserver(function(ms){for(var i=0;i<ms.length;i++){var ad=ms[i].addedNodes;for(var j=0;j<ad.length;j++){var nd=ad[j];if(nd.nodeType!==1)continue;if(nd.tagName==='A')decAnchor(nd);else if(nd.querySelectorAll)all(nd);}}}).observe(document.documentElement,{childList:true,subtree:true});
+try{var oo=window.open;window.open=function(u,t,f){return oo.call(this,u?decorate(u):u,t,f);};}catch(e){}
+try{var Lp=Location.prototype,oa=Lp.assign,orp=Lp.replace;Lp.assign=function(u){return oa.call(this,decorate(u));};Lp.replace=function(u){return orp.call(this,decorate(u));};}catch(e){}
+function wrapGoAway(){if(typeof window.go_away!=='function'||window.__gk_wrapped)return false;var og=window.go_away;window.go_away=function(){try{var link=(typeof OFFER_LINK!=='undefined')?OFFER_LINK:null;if(link){window.location.href=decorate(link);return;}}catch(e){}return og.apply(this,arguments);};window.__gk_wrapped=true;return true;}
+if(!wrapGoAway()){var t=0,iv=setInterval(function(){if(wrapGoAway()||++t>20)clearInterval(iv);},200);}
+}catch(e){}})();</script>`;
 
   const bodyClose = html.search(/<\/body\s*>/i);
   if (bodyClose !== -1) {
