@@ -63,6 +63,8 @@ export async function GET(
     html = injectGtm(html, GTM_ID);
   }
 
+  html = injectUtmForwarder(html);
+
   return new NextResponse(html, {
     status: 200,
     headers: {
@@ -129,6 +131,23 @@ function rewriteAssetPaths(html: string, slug: string): string {
   );
 
   return html;
+}
+
+/**
+ * Forwards the landing page's incoming query string (utm_*, sub_id*, fbclid,
+ * gclid, anything else marketing puts on the ad URL) to every anchor on the
+ * page. Anchor's own params win on conflict so the merchant's existing
+ * tracking is preserved. Runs once on DOMContentLoaded and watches for any
+ * anchors added later by a framework or analytics tag.
+ */
+function injectUtmForwarder(html: string): string {
+  const script = `<script>(function(){try{var src=new URLSearchParams(window.location.search);if(!src.toString())return;function decorate(a){var h=a.getAttribute('href');if(!h)return;if(/^(mailto:|tel:|javascript:|data:|#)/i.test(h))return;var u;try{u=new URL(h,window.location.href);}catch(e){return;}if(u.protocol!=='http:'&&u.protocol!=='https:')return;src.forEach(function(v,k){if(!u.searchParams.has(k))u.searchParams.set(k,v);});a.setAttribute('href',u.toString());}function all(r){var n=(r||document).querySelectorAll('a[href]');for(var i=0;i<n.length;i++)decorate(n[i]);}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',function(){all();});}else{all();}new MutationObserver(function(ms){for(var i=0;i<ms.length;i++){var ad=ms[i].addedNodes;for(var j=0;j<ad.length;j++){var nd=ad[j];if(nd.nodeType!==1)continue;if(nd.tagName==='A')decorate(nd);else if(nd.querySelectorAll)all(nd);}}}).observe(document.documentElement,{childList:true,subtree:true});}catch(e){}})();</script>`;
+
+  const bodyClose = html.search(/<\/body\s*>/i);
+  if (bodyClose !== -1) {
+    return html.substring(0, bodyClose) + script + html.substring(bodyClose);
+  }
+  return html + script;
 }
 
 /**
