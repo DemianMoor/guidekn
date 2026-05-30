@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 const STORAGE_PUBLIC_BASE =
   "https://bdhujqomjvfgzbgicwev.supabase.co/storage/v1/object/public/landing-pages";
 const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
+const CLARITY_ID = "wnchg7ymtb";
 
 export async function GET(
   _req: NextRequest,
@@ -62,6 +63,8 @@ export async function GET(
   if (GTM_ID) {
     html = injectGtm(html, GTM_ID);
   }
+
+  html = injectClarity(html, CLARITY_ID);
 
   html = injectUtmForwarder(html);
 
@@ -148,6 +151,24 @@ function injectUtmForwarder(html: string): string {
     return html.substring(0, bodyClose) + script + html.substring(bodyClose);
   }
   return html + script;
+}
+
+/**
+ * Loads Microsoft Clarity directly on every LP rather than relying on the
+ * GTM-side Clarity tag. The GTM Clarity tag's trigger is easy to misconfigure
+ * (e.g. "Some Pages" with a URL filter that excludes /lp/*), at which point
+ * Clarity silently stops recording on LPs. The window.clarity guard makes
+ * this snippet a no-op if the GTM-side tag already fired first.
+ */
+function injectClarity(html: string, clarityId: string): string {
+  const script = `<script>(function(c,l,a,r,i,t,y){if(c[a])return;c[a]=function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);})(window,document,"clarity","script","${clarityId}");</script>`;
+
+  const headMatch = html.match(/<head[^>]*>/i);
+  if (headMatch) {
+    const insertAt = headMatch.index! + headMatch[0].length;
+    return html.substring(0, insertAt) + script + html.substring(insertAt);
+  }
+  return html;
 }
 
 /**
