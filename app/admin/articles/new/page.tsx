@@ -17,9 +17,9 @@ export default async function NewArticlePage() {
         Draft a new article.
       </h1>
       <p className="text-ink/70 mt-3 max-w-2xl text-sm">
-        Pick a topic and a pillar. We&apos;ll generate a first-pass draft in
-        Guide Kin voice — sourced, plainspoken, and ready for you to edit.
-        Generation takes 20–40 seconds.
+        Write it yourself, or let AI draft a first pass in Guide Kin voice.
+        Either way you land in the full editor to refine, add a hero image, and
+        publish or schedule.
       </p>
 
       <NewArticleForm editorName={editor.display_name} />
