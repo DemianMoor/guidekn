@@ -83,6 +83,9 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
     initial.published_at ? toLocalDatetimeInput(initial.published_at) : ""
   );
 
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageFileRef = useRef<HTMLInputElement>(null);
+
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
   const [status, setStatus] = useState(initial.status);
   const [publishedAt, setPublishedAt] = useState<string | null>(initial.published_at);
@@ -223,6 +226,32 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
         kind: "error",
         message: "Couldn't reach the server.",
       });
+    }
+  }
+
+  async function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/admin/articles/images/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        window.alert(data.error || "Image upload failed. Try again.");
+        return;
+      }
+      setImageUrl(data.url);
+    } catch {
+      window.alert("Couldn't reach the server. Check your connection.");
+    } finally {
+      setUploadingImage(false);
     }
   }
 
@@ -487,9 +516,25 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
               Hero image
             </p>
             <p className="text-ink/60 mt-1 text-xs">
-              Paste any image URL (Unsplash, your CDN, etc.). Leave blank for
-              the placeholder layout.
+              Upload an image file or paste any image URL (Unsplash, your CDN,
+              etc.). Leave blank for the placeholder layout.
             </p>
+
+            <input
+              ref={imageFileRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageFile}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => imageFileRef.current?.click()}
+              disabled={uploadingImage}
+              className="border-stone text-ink hover:border-sage hover:text-sage mt-4 w-full cursor-pointer rounded-xl border border-dashed px-3 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {uploadingImage ? "Uploading…" : "Upload image file"}
+            </button>
 
             <label className="mt-4 block">
               <span className="text-ink text-xs font-medium">Image URL</span>

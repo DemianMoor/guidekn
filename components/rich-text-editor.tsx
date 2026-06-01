@@ -5,7 +5,55 @@ import { BubbleMenu, FloatingMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
+import { mergeAttributes } from "@tiptap/core";
+import type { DOMOutputSpec } from "@tiptap/pm/model";
 import { useRef, useState } from "react";
+
+// Image node that can optionally be wrapped in a link, so the whole image
+// becomes clickable on the live site. Serialized as
+// <a class="article-image-link" href="..."><img class="article-inline-image" ...></a>.
+// The href lives on the wrapping <a>, never on the <img>.
+const LinkableImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      href: {
+        default: null,
+        // Emitted on the <a> in renderHTML below — keep it off the <img>.
+        renderHTML: () => ({}),
+      },
+    };
+  },
+  parseHTML() {
+    return [
+      {
+        // An <img> wrapped in a link → image node carrying the anchor's href.
+        tag: "a img[src]",
+        getAttrs: (img) => {
+          const anchor = (img as HTMLElement).closest("a");
+          if (!anchor) return false;
+          return { href: anchor.getAttribute("href") };
+        },
+      },
+      { tag: "img[src]" },
+    ];
+  },
+  renderHTML({ node, HTMLAttributes }) {
+    const img: DOMOutputSpec = [
+      "img",
+      mergeAttributes(this.options.HTMLAttributes, HTMLAttributes),
+    ];
+    const href = node.attrs.href as string | null;
+    if (href) {
+      return [
+        "a",
+        { href, class: "article-image-link", target: "_blank", rel: "noopener" },
+        img,
+      ] as DOMOutputSpec;
+    }
+    return img;
+  },
+});
 
 type RichTextEditorProps = {
   // Initial HTML content. The editor is uncontrolled after mount — it owns its
@@ -31,7 +79,7 @@ export function RichTextEditor({ initialHTML, onChange }: RichTextEditorProps) {
         },
       }),
       Highlight,
-      Image.configure({
+      LinkableImage.configure({
         HTMLAttributes: { class: "article-inline-image" },
       }),
     ],
@@ -102,12 +150,60 @@ export function RichTextEditor({ initialHTML, onChange }: RichTextEditorProps) {
     }
   }
 
+  function setImageLink() {
+    const previous = editor!.getAttributes("image").href as string | undefined;
+    const url = window.prompt(
+      "Link this image to (full URL like https://… or an internal path like /picks/…). Leave blank to remove the link.",
+      previous ?? "https://"
+    );
+    if (url === null) return; // cancelled
+    const trimmed = url.trim();
+    editor!
+      .chain()
+      .focus()
+      .updateAttributes("image", { href: trimmed === "" ? null : trimmed })
+      .run();
+  }
+
   const menuClass =
     "border-stone z-50 flex flex-wrap items-center gap-0.5 rounded-lg border bg-white p-1 shadow-lg";
 
   return (
     <div className="border-stone mt-2 rounded-xl border bg-white px-4 py-4">
       <EditorContent editor={editor} />
+
+      {/* Image bubble — appears when an inline image is selected. Lets you make
+          the whole image a clickable link. */}
+      <BubbleMenu
+        editor={editor}
+        pluginKey="imageBubbleMenu"
+        className={menuClass}
+        shouldShow={({ editor }) => editor.isActive("image")}
+      >
+        <MenuButton
+          label={editor.getAttributes("image").href ? "🔗 Edit link" : "🔗 Link image"}
+          title="Link this image to a page"
+          active={!!editor.getAttributes("image").href}
+          onClick={setImageLink}
+        />
+        {editor.getAttributes("image").href ? (
+          <>
+            <Divider />
+            <MenuButton
+              label="Remove link"
+              title="Remove the link from this image"
+              active={false}
+              onClick={() =>
+                editor
+                  .chain()
+                  .focus()
+                  .updateAttributes("image", { href: null })
+                  .run()
+              }
+            />
+          </>
+        ) : null}
+      </BubbleMenu>
 
       {/* Selection bubble — formatting for the text you've highlighted */}
       <BubbleMenu

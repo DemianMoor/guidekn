@@ -150,8 +150,16 @@ body {
   border: 1px solid var(--color-stone);
 }
 
-/* Show the selected inline image inside the editor */
-.article-body img.ProseMirror-selectednode {
+/* Linked inline image — the whole image is a clickable link */
+.article-body a.article-image-link {
+  display: block;
+  border: 0;
+  text-decoration: none;
+}
+
+/* Show the selected inline image inside the editor (image, or its link wrapper) */
+.article-body img.ProseMirror-selectednode,
+.article-body a.article-image-link.ProseMirror-selectednode {
   outline: 2px solid var(--color-sage);
   outline-offset: 2px;
 }
