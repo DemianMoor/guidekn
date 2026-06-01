@@ -9,6 +9,7 @@ import { SiteFooter } from "@/components/site-footer";
 import { ArticleImage } from "@/components/article-image";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import { PILLARS } from "@/lib/brand-voice";
+import { isHtmlBody } from "@/lib/article-body";
 
 type ArticlePageParams = {
   pillar: string;
@@ -156,9 +157,16 @@ export default async function ArticlePage({
           {/* Body */}
           <div className="mx-auto max-w-3xl px-6 py-12 md:py-16">
             <div className="prose-editorial article-body text-ink/85 leading-relaxed">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {article.body}
-              </ReactMarkdown>
+              {isHtmlBody(article.body) ? (
+                // HTML from the rich-text editor. Authored only by signed-in
+                // editors and constrained to TipTap's safe schema, so it's
+                // rendered directly.
+                <div dangerouslySetInnerHTML={{ __html: article.body }} />
+              ) : (
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {article.body}
+                </ReactMarkdown>
+              )}
             </div>
 
             {/* Sign-off */}

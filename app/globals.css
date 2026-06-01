@@ -124,3 +124,34 @@ body {
   border-top: 1px solid var(--color-stone);
   margin: 3rem 0;
 }
+
+.article-body u {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Highlight — soft amber wash, on-brand */
+.article-body mark {
+  background: #f3e3c3;
+  color: var(--color-ink);
+  padding: 0.05em 0.2em;
+  border-radius: 0.2em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Inline images (rich editor + live page) */
+.article-body img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 2rem auto;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-stone);
+}
+
+/* Show the selected inline image inside the editor */
+.article-body img.ProseMirror-selectednode {
+  outline: 2px solid var(--color-sage);
+  outline-offset: 2px;
+}

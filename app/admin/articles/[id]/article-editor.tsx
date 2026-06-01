@@ -3,6 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { marked } from "marked";
+import { RichTextEditor } from "@/components/rich-text-editor";
+import { isHtmlBody } from "@/lib/article-body";
+
+// Convert a legacy markdown body to HTML so the rich editor can load it.
+// New articles are already HTML and skip this (convert-on-edit).
+function markdownToHtml(md: string): string {
+  if (!md.trim()) return "";
+  return marked.parse(md, { async: false, gfm: true, breaks: false }) as string;
+}
 
 // Convert ISO string to the format datetime-local input expects
 function toLocalDatetimeInput(isoString: string): string {
@@ -53,10 +63,17 @@ type SaveState =
 export function ArticleEditor({ article: initial }: { article: Article }) {
   const router = useRouter();
 
+  // Seed the editor with HTML. Old markdown articles are converted once, here,
+  // for editing; the conversion only becomes the stored body if the editor
+  // actually saves (see baseline below).
+  const initialBodyHtml = isHtmlBody(initial.body)
+    ? initial.body
+    : markdownToHtml(initial.body);
+
   const [title, setTitle] = useState(initial.title);
   const [slug, setSlug] = useState(initial.slug);
   const [dek, setDek] = useState(initial.dek ?? "");
-  const [body, setBody] = useState(initial.body);
+  const [body, setBody] = useState(initialBodyHtml);
   const [byline, setByline] = useState(initial.byline);
   const [pillar, setPillar] = useState(initial.pillar);
   const [imageUrl, setImageUrl] = useState(initial.image_url ?? "");
@@ -78,7 +95,7 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
       title: initial.title,
       slug: initial.slug,
       dek: initial.dek ?? "",
-      body: initial.body,
+      body: initialBodyHtml,
       byline: initial.byline,
       pillar: initial.pillar,
       image_url: initial.image_url ?? "",
@@ -377,22 +394,18 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
             />
           </label>
 
-          <label className="mt-6 block">
+          <div className="mt-6">
             <span className="text-ink/60 text-xs font-medium uppercase tracking-wider">
-              Body (markdown)
+              Body
             </span>
-            <textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={30}
-              className="prose-editorial text-ink/85 border-stone mt-2 w-full rounded-xl border p-4 leading-relaxed focus:border-sage focus:outline-none"
-              placeholder="Write the article in markdown..."
-            />
+            <RichTextEditor initialHTML={initialBodyHtml} onChange={setBody} />
             <p className="text-ink/50 mt-2 text-xs">
-              Use ## for subheadings, blank lines between paragraphs, *italic*
-              and **bold** for emphasis. Markdown renders on the live site.
+              Select text to format it (headline, bold, italic, underline,
+              highlight). Use the image button to upload and drop a picture
+              right into the text. It renders on the live site exactly as you
+              see it here.
             </p>
-          </label>
+          </div>
         </div>
 
         <div className="space-y-6">
