@@ -400,10 +400,10 @@ export function ArticleEditor({ article: initial }: { article: Article }) {
             </span>
             <RichTextEditor initialHTML={initialBodyHtml} onChange={setBody} />
             <p className="text-ink/50 mt-2 text-xs">
-              Select text to format it (headline, bold, italic, underline,
-              highlight). Use the image button to upload and drop a picture
-              right into the text. It renders on the live site exactly as you
-              see it here.
+              Select any text to format it (headline, bold, italic, underline,
+              highlight, link). On an empty line, a menu appears for adding a
+              heading, list, quote, or image. It renders on the live site
+              exactly as you see it here.
             </p>
           </div>
         </div>

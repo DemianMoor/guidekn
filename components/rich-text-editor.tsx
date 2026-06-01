@@ -1,6 +1,7 @@
 "use client";
 
-import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import { BubbleMenu, FloatingMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
@@ -15,6 +16,9 @@ type RichTextEditorProps = {
 };
 
 export function RichTextEditor({ initialHTML, onChange }: RichTextEditorProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
   const editor = useEditor({
     // Required for Next.js / SSR — avoids a hydration mismatch on first render.
     immediatelyRender: false,
@@ -52,33 +56,19 @@ export function RichTextEditor({ initialHTML, onChange }: RichTextEditorProps) {
     );
   }
 
-  return (
-    <div className="border-stone mt-2 overflow-hidden rounded-xl border">
-      <Toolbar editor={editor} />
-      <div className="bg-white px-4 py-4">
-        <EditorContent editor={editor} />
-      </div>
-    </div>
-  );
-}
-
-function Toolbar({ editor }: { editor: Editor }) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
-
   function toggleLink() {
-    if (editor.isActive("link")) {
-      editor.chain().focus().unsetLink().run();
+    if (editor!.isActive("link")) {
+      editor!.chain().focus().unsetLink().run();
       return;
     }
-    const previous = editor.getAttributes("link").href as string | undefined;
+    const previous = editor!.getAttributes("link").href as string | undefined;
     const url = window.prompt("Link URL:", previous ?? "https://");
     if (url === null) return; // cancelled
     if (url.trim() === "") {
-      editor.chain().focus().unsetLink().run();
+      editor!.chain().focus().unsetLink().run();
       return;
     }
-    editor
+    editor!
       .chain()
       .focus()
       .extendMarkRange("link")
@@ -104,7 +94,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         window.alert(data.error || "Image upload failed. Try again.");
         return;
       }
-      editor.chain().focus().setImage({ src: data.url }).run();
+      editor!.chain().focus().setImage({ src: data.url }).run();
     } catch {
       window.alert("Couldn't reach the server. Check your connection.");
     } finally {
@@ -112,91 +102,134 @@ function Toolbar({ editor }: { editor: Editor }) {
     }
   }
 
+  const menuClass =
+    "border-stone z-50 flex flex-wrap items-center gap-0.5 rounded-lg border bg-white p-1 shadow-lg";
+
   return (
-    <div className="bg-cream border-stone flex flex-wrap items-center gap-1 border-b px-2 py-2">
-      <ToolbarButton
-        label="H2"
-        title="Headline"
-        active={editor.isActive("heading", { level: 2 })}
-        onClick={() =>
-          editor.chain().focus().toggleHeading({ level: 2 }).run()
-        }
-      />
-      <ToolbarButton
-        label="H3"
-        title="Subheadline"
-        active={editor.isActive("heading", { level: 3 })}
-        onClick={() =>
-          editor.chain().focus().toggleHeading({ level: 3 }).run()
-        }
-      />
+    <div className="border-stone mt-2 rounded-xl border bg-white px-4 py-4">
+      <EditorContent editor={editor} />
 
-      <Divider />
+      {/* Selection bubble — formatting for the text you've highlighted */}
+      <BubbleMenu
+        editor={editor}
+        className={menuClass}
+        shouldShow={({ editor, state }) => {
+          const { from, to } = state.selection;
+          return from !== to && editor.isEditable && !editor.isActive("image");
+        }}
+      >
+        <MenuButton
+          label="H2"
+          title="Headline"
+          active={editor.isActive("heading", { level: 2 })}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 2 }).run()
+          }
+        />
+        <MenuButton
+          label="H3"
+          title="Subheadline"
+          active={editor.isActive("heading", { level: 3 })}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 3 }).run()
+          }
+        />
+        <Divider />
+        <MenuButton
+          label="B"
+          title="Bold"
+          className="font-bold"
+          active={editor.isActive("bold")}
+          onClick={() => editor.chain().focus().toggleBold().run()}
+        />
+        <MenuButton
+          label="I"
+          title="Italic"
+          className="italic"
+          active={editor.isActive("italic")}
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+        />
+        <MenuButton
+          label="U"
+          title="Underline"
+          className="underline"
+          active={editor.isActive("underline")}
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+        />
+        <MenuButton
+          label="Highlight"
+          title="Highlight"
+          active={editor.isActive("highlight")}
+          onClick={() => editor.chain().focus().toggleHighlight().run()}
+        />
+        <Divider />
+        <MenuButton
+          label="🔗 Link"
+          title="Add or remove link"
+          active={editor.isActive("link")}
+          onClick={toggleLink}
+        />
+      </BubbleMenu>
 
-      <ToolbarButton
-        label="B"
-        title="Bold"
-        className="font-bold"
-        active={editor.isActive("bold")}
-        onClick={() => editor.chain().focus().toggleBold().run()}
-      />
-      <ToolbarButton
-        label="I"
-        title="Italic"
-        className="italic"
-        active={editor.isActive("italic")}
-        onClick={() => editor.chain().focus().toggleItalic().run()}
-      />
-      <ToolbarButton
-        label="U"
-        title="Underline"
-        className="underline"
-        active={editor.isActive("underline")}
-        onClick={() => editor.chain().focus().toggleUnderline().run()}
-      />
-      <ToolbarButton
-        label="Highlight"
-        title="Highlight"
-        active={editor.isActive("highlight")}
-        onClick={() => editor.chain().focus().toggleHighlight().run()}
-      />
+      {/* Inline insert menu — appears on an empty line */}
+      <FloatingMenu
+        editor={editor}
+        className={menuClass}
+        shouldShow={({ editor, state }) => {
+          const { $from, empty } = state.selection;
+          return (
+            editor.isEditable &&
+            empty &&
+            $from.parent.type.name === "paragraph" &&
+            $from.parent.content.size === 0
+          );
+        }}
+      >
+        <MenuButton
+          label="H2"
+          title="Headline"
+          active={false}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 2 }).run()
+          }
+        />
+        <MenuButton
+          label="H3"
+          title="Subheadline"
+          active={false}
+          onClick={() =>
+            editor.chain().focus().toggleHeading({ level: 3 }).run()
+          }
+        />
+        <Divider />
+        <MenuButton
+          label="• List"
+          title="Bullet list"
+          active={false}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+        />
+        <MenuButton
+          label="1. List"
+          title="Numbered list"
+          active={false}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        />
+        <MenuButton
+          label="❝ Quote"
+          title="Block quote"
+          active={false}
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        />
+        <Divider />
+        <MenuButton
+          label={uploading ? "Uploading…" : "🖼 Image"}
+          title="Insert image"
+          active={false}
+          disabled={uploading}
+          onClick={() => fileInputRef.current?.click()}
+        />
+      </FloatingMenu>
 
-      <Divider />
-
-      <ToolbarButton
-        label="• List"
-        title="Bullet list"
-        active={editor.isActive("bulletList")}
-        onClick={() => editor.chain().focus().toggleBulletList().run()}
-      />
-      <ToolbarButton
-        label="1. List"
-        title="Numbered list"
-        active={editor.isActive("orderedList")}
-        onClick={() => editor.chain().focus().toggleOrderedList().run()}
-      />
-      <ToolbarButton
-        label="❝ Quote"
-        title="Block quote"
-        active={editor.isActive("blockquote")}
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
-      />
-
-      <Divider />
-
-      <ToolbarButton
-        label="🔗 Link"
-        title="Add or remove link"
-        active={editor.isActive("link")}
-        onClick={toggleLink}
-      />
-      <ToolbarButton
-        label={uploading ? "Uploading…" : "🖼 Image"}
-        title="Insert image"
-        active={false}
-        disabled={uploading}
-        onClick={() => fileInputRef.current?.click()}
-      />
       <input
         ref={fileInputRef}
         type="file"
@@ -208,7 +241,7 @@ function Toolbar({ editor }: { editor: Editor }) {
   );
 }
 
-function ToolbarButton({
+function MenuButton({
   label,
   title,
   active,
@@ -241,5 +274,5 @@ function ToolbarButton({
 }
 
 function Divider() {
-  return <span className="bg-stone mx-1 h-5 w-px" aria-hidden />;
+  return <span className="bg-stone mx-0.5 h-5 w-px" aria-hidden />;
 }
