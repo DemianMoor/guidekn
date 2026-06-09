@@ -24,7 +24,7 @@ export default async function Home() {
     supabase.from("site_settings").select("key, value"),
     supabase
       .from("articles")
-      .select("title, slug, pillar, dek, byline, image_url, image_alt, published_at")
+      .select("title, slug, pillar, subtitle, byline, image_url, image_alt, published_at")
       .eq("status", "published")
       .order("published_at", { ascending: false })
       .limit(4),
@@ -168,8 +168,8 @@ export default async function Home() {
                   <h3 className="text-ink group-hover:text-sage mt-3 font-serif text-2xl font-medium leading-tight tracking-tight md:text-3xl">
                     {featured.title}
                   </h3>
-                  {featured.dek && (
-                    <p className="text-ink/75 mt-4 leading-relaxed">{featured.dek}</p>
+                  {featured.subtitle && (
+                    <p className="text-ink/75 mt-4 leading-relaxed">{featured.subtitle}</p>
                   )}
                   <p className="text-ink/60 mt-6 text-sm">By {featured.byline}</p>
                 </div>
@@ -188,9 +188,9 @@ export default async function Home() {
                     <h3 className="text-ink group-hover:text-sage mt-2 font-serif text-xl font-medium leading-snug tracking-tight">
                       {a.title}
                     </h3>
-                    {a.dek && (
+                    {a.subtitle && (
                       <p className="text-ink/70 mt-2 text-sm leading-relaxed">
-                        {a.dek}
+                        {a.subtitle}
                       </p>
                     )}
                     <p className="text-ink/60 mt-3 text-xs">By {a.byline}</p>

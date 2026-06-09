@@ -31,7 +31,7 @@ export async function generateMetadata({
   const supabase = createSupabaseAdmin();
   const { data: article } = await supabase
     .from("articles")
-    .select("title, dek, image_url, seo_title, seo_description, byline")
+    .select("title, subtitle, image_url, seo_title, seo_description, byline")
     .eq("slug", slug)
     .eq("pillar", pillar)
     .eq("status", "published")
@@ -41,10 +41,10 @@ export async function generateMetadata({
 
   return {
     title: article.seo_title || article.title,
-    description: article.seo_description || article.dek,
+    description: article.seo_description || article.subtitle,
     openGraph: {
       title: article.title,
-      description: article.dek || undefined,
+      description: article.subtitle || undefined,
       type: "article",
       authors: [article.byline],
       images: article.image_url ? [{ url: article.image_url }] : undefined,
@@ -52,7 +52,7 @@ export async function generateMetadata({
     twitter: {
       card: "summary_large_image",
       title: article.title,
-      description: article.dek || undefined,
+      description: article.subtitle || undefined,
       images: article.image_url ? [article.image_url] : undefined,
     },
   };
@@ -88,7 +88,7 @@ export default async function ArticlePage({
   // Find 2 related articles in the same pillar
   const { data: related } = await supabase
     .from("articles")
-    .select("title, slug, dek, byline, image_url, image_alt, pillar")
+    .select("title, slug, subtitle, byline, image_url, image_alt, pillar")
     .eq("pillar", pillar)
     .eq("status", "published")
     .neq("id", article.id)
@@ -115,9 +115,9 @@ export default async function ArticlePage({
                 {article.title}
               </h1>
 
-              {article.dek && (
+              {article.subtitle && (
                 <p className="text-ink/75 mt-6 max-w-2xl text-xl leading-relaxed md:text-2xl">
-                  {article.dek}
+                  {article.subtitle}
                 </p>
               )}
 
@@ -205,9 +205,9 @@ export default async function ArticlePage({
                     <h3 className="text-ink group-hover:text-sage mt-4 font-serif text-lg font-medium leading-snug tracking-tight">
                       {r.title}
                     </h3>
-                    {r.dek && (
+                    {r.subtitle && (
                       <p className="text-ink/70 mt-2 text-sm leading-relaxed">
-                        {r.dek}
+                        {r.subtitle}
                       </p>
                     )}
                     <p className="text-ink/60 mt-3 text-xs">By {r.byline}</p>

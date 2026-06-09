@@ -78,7 +78,7 @@ export default async function PillarPage({
   const supabase = createSupabaseAdmin();
   const { data: articles } = await supabase
     .from("articles")
-    .select("title, slug, dek, byline, image_url, image_alt, pillar, published_at")
+    .select("title, slug, subtitle, byline, image_url, image_alt, pillar, published_at")
     .eq("pillar", pillar)
     .eq("status", "published")
     .order("published_at", { ascending: false });
@@ -125,8 +125,8 @@ export default async function PillarPage({
                     <h2 className="text-ink group-hover:text-sage mt-3 font-serif text-3xl font-medium leading-tight tracking-tight md:text-4xl">
                       {featured.title}
                     </h2>
-                    {featured.dek && (
-                      <p className="text-ink/75 mt-4 leading-relaxed">{featured.dek}</p>
+                    {featured.subtitle && (
+                      <p className="text-ink/75 mt-4 leading-relaxed">{featured.subtitle}</p>
                     )}
                     <p className="text-ink/60 mt-6 text-sm">By {featured.byline}</p>
                     <span className="text-amber group-hover:text-sage mt-6 inline-block text-sm">
@@ -148,8 +148,8 @@ export default async function PillarPage({
                       <h3 className="text-ink group-hover:text-sage mt-2 font-serif text-xl font-medium leading-snug tracking-tight">
                         {a.title}
                       </h3>
-                      {a.dek && (
-                        <p className="text-ink/70 mt-2 text-sm leading-relaxed">{a.dek}</p>
+                      {a.subtitle && (
+                        <p className="text-ink/70 mt-2 text-sm leading-relaxed">{a.subtitle}</p>
                       )}
                       <p className="text-ink/60 mt-3 text-xs">By {a.byline}</p>
                     </Link>
