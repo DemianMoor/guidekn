@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSupabaseAdmin } from "@/lib/supabase";
+import { createSupabaseAdmin, getAnalyticsSettings } from "@/lib/supabase";
 import {
   applyChromeSwap,
   effectiveChromeState,
@@ -10,8 +10,6 @@ export const dynamic = "force-dynamic";
 
 const STORAGE_PUBLIC_BASE =
   "https://bdhujqomjvfgzbgicwev.supabase.co/storage/v1/object/public/landing-pages";
-const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
-const CLARITY_ID = "wnchg7ymtb";
 
 export async function GET(
   _req: NextRequest,
@@ -60,11 +58,16 @@ export async function GET(
     html = applyChromeSwap(html).html;
   }
 
-  if (GTM_ID) {
-    html = injectGtm(html, GTM_ID);
+  // Analytics IDs come from site_settings (GuideKin landing_pages have no
+  // per-page gtm_id column, so there's no page-level override to prefer);
+  // getAnalyticsSettings falls back to the previous hardcoded values.
+  const { gtmId, clarityId } = await getAnalyticsSettings();
+
+  if (gtmId) {
+    html = injectGtm(html, gtmId);
   }
 
-  html = injectClarity(html, CLARITY_ID);
+  html = injectClarity(html, clarityId);
 
   html = injectUtmForwarder(html);
 

@@ -10,8 +10,6 @@ declare global {
   }
 }
 
-const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID;
-
 // Paths where analytics should NOT load at all.
 // /admin/* is excluded entirely; admin sessions don't pollute reader analytics.
 function isExcludedPath(pathname: string): boolean {
@@ -29,7 +27,6 @@ function PageViewTracker() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (!GTM_ID) return;
     if (isExcludedPath(pathname)) return;
     if (typeof window === "undefined") return;
 
@@ -50,13 +47,14 @@ function PageViewTracker() {
 }
 
 /**
- * Loads GTM (which in turn loads GA4 and Clarity).
- * Skips loading on admin paths entirely.
+ * Loads GTM (which in turn loads GA4 and Clarity), using the GTM container ID
+ * resolved from site_settings (see getAnalyticsSettings) and passed in from the
+ * root layout. Skips loading on admin paths entirely.
  */
-export function Analytics() {
+export function Analytics({ gtmId }: { gtmId: string }) {
   const pathname = usePathname();
 
-  if (!GTM_ID) return null;
+  if (!gtmId) return null;
   if (isExcludedPath(pathname)) return null;
 
   return (
@@ -67,13 +65,13 @@ export function Analytics() {
           new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
           j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-          })(window,document,'script','dataLayer','${GTM_ID}');
+          })(window,document,'script','dataLayer','${gtmId}');
         `}
       </Script>
 
       <noscript>
         <iframe
-          src={`https://www.googletagmanager.com/ns.html?id=${GTM_ID}`}
+          src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
           height="0"
           width="0"
           style={{ display: "none", visibility: "hidden" }}

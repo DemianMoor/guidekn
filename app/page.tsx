@@ -4,7 +4,7 @@ import Link from "next/link";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ArticleImage } from "@/components/article-image";
-import { createSupabaseAdmin } from "@/lib/supabase";
+import { createSupabaseAdmin, toSettingsMap } from "@/lib/supabase";
 import { PILLARS } from "@/lib/brand-voice";
 
 const pillars = [
@@ -30,12 +30,7 @@ export default async function Home() {
       .limit(4),
   ]);
 
-  const settings: Record<string, string> = {};
-  if (settingsRes.data) {
-    for (const row of settingsRes.data) {
-      if (row.value) settings[row.key] = row.value;
-    }
-  }
+  const settings = toSettingsMap(settingsRes.data);
 
   const articles = articlesRes.data;
   const featured = articles?.[0] || null;

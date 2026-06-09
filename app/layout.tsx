@@ -4,6 +4,7 @@ import "./globals.css";
 import { PopupProvider } from "@/lib/popup-context";
 import { SubscribePopup } from "@/components/subscribe-popup";
 import { Analytics } from "@/components/analytics";
+import { getAnalyticsSettings } from "@/lib/supabase";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -46,11 +47,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { gtmId } = await getAnalyticsSettings();
+
   return (
     <html lang="en" className={`${inter.variable} ${sourceSerif.variable}`}>
       <body>
@@ -58,7 +61,7 @@ export default function RootLayout({
           {children}
           <SubscribePopup />
         </PopupProvider>
-        <Analytics />
+        <Analytics gtmId={gtmId} />
       </body>
     </html>
   );
