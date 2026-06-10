@@ -29,6 +29,41 @@ body {
   font-size: 1.125rem;
   line-height: 1.7;
 }
+/* Legal/policy pages render stored HTML inside .prose-editorial — restore the
+   element styling the old inline-classed JSX used to provide (Tailwind preflight
+   strips list markers/margins, so these rules are required). */
+.prose-editorial h2 {
+  font-family: var(--font-serif);
+  color: var(--color-ink);
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin-top: 3rem;
+}
+.prose-editorial h3 {
+  font-family: var(--font-serif);
+  color: var(--color-ink);
+  font-size: 1.25rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  margin-top: 1.5rem;
+}
+.prose-editorial ul {
+  list-style: disc;
+  margin-left: 1.5rem;
+}
+.prose-editorial li + li {
+  margin-top: 0.5rem;
+}
+.prose-editorial a {
+  color: var(--color-amber);
+}
+.prose-editorial a:hover {
+  color: var(--color-sage);
+}
+.prose-editorial strong {
+  font-weight: 600;
+}
 /* Article body — editorial typography */
 .article-body {
   font-family: var(--font-serif);

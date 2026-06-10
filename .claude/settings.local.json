@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(function Get-Status\\($url\\) { try { $r = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 240 -MaximumRedirection 0; return [int]$r.StatusCode } catch { if \\($_.Exception.Response\\) { return [int]$_.Exception.Response.StatusCode } else { return \"ERR: $\\($_.Exception.Message\\)\" } } }; \"/picks -> $\\(Get-Status 'http://localhost:3001/picks'\\)\"; \"/picks/wellness -> $\\(Get-Status 'http://localhost:3001/picks/wellness'\\)\"; \"/picks/wellness/foo -> $\\(Get-Status 'http://localhost:3001/picks/wellness/foo'\\)\")",
+      "Bash(Select-String -Pattern \"tel:\" -Context 1)"
+    ]
+  }
+}
