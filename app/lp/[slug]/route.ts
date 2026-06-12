@@ -187,11 +187,17 @@ function injectClarity(html: string, clarityId: string): string {
  * handles both inline scripts and <script src> tags, and loads nothing for
  * organic visits. Wrapped in try/catch so a malformed value never breaks the
  * page. GTM is untouched and keeps firing on every pageview.
+ *
+ * It also adds the page slug to the click as sub_id_4 (a click-only reporting
+ * dimension) via KTracking.update — keyed off the click token, so it never
+ * touches the URL and never round-trips to the affiliate (unlike sub_id_3/
+ * sub_id_5, which the query-forwarder sends downstream). The ready() callback is
+ * queued before the async k.min.js initialises, so it fires once the token exists.
  */
 function injectKeitaro(html: string, keitaroScript: string): string {
   const block =
     `<template id="keitaro-direct">${keitaroScript}</template>` +
-    `<script>(function(){try{if(!new URLSearchParams(window.location.search).has('sub_id_5'))return;var t=document.getElementById('keitaro-direct');if(!t)return;var ss=t.content.querySelectorAll('script');for(var i=0;i<ss.length;i++){var o=ss[i],n=document.createElement('script');for(var j=0;j<o.attributes.length;j++){n.setAttribute(o.attributes[j].name,o.attributes[j].value);}if(o.src){n.src=o.src;}else{n.textContent=o.textContent;}document.head.appendChild(n);}}catch(e){}})();</script>`;
+    `<script>(function(){try{if(!new URLSearchParams(window.location.search).has('sub_id_5'))return;var t=document.getElementById('keitaro-direct');if(!t)return;var ss=t.content.querySelectorAll('script');for(var i=0;i<ss.length;i++){var o=ss[i],n=document.createElement('script');for(var j=0;j<o.attributes.length;j++){n.setAttribute(o.attributes[j].name,o.attributes[j].value);}if(o.src){n.src=o.src;}else{n.textContent=o.textContent;}document.head.appendChild(n);}var p=window.location.pathname,slug;if(p.indexOf('/lp/')===0){slug=p.slice(4).split('/')[0];}else{var sg=p.split('/').filter(Boolean);slug=sg[sg.length-1]||'';}if(slug&&window.KTracking&&window.KTracking.ready){window.KTracking.ready(function(){try{window.KTracking.update({sub_id_4:slug});}catch(e){}});}}catch(e){}})();</script>`;
 
   const headMatch = html.match(/<head[^>]*>/i);
   if (headMatch) {

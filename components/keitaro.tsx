@@ -2,6 +2,25 @@
 
 import { useEffect } from "react";
 
+/** Minimal shape of the Keitaro tracking API exposed by the brand's script. */
+type KTracking = {
+  ready?: (fn: () => void) => void;
+  update?: (subIds: Record<string, string>) => void;
+};
+
+/**
+ * Page slug for the `sub_id_4` reporting dimension:
+ * - `/lp/<slug>` → the segment immediately after `/lp/`
+ * - otherwise (articles, e.g. `/article/<slug>` or `/<pillar>/<slug>`) → the
+ *   last non-empty path segment
+ * Trailing slashes fall out naturally (split drops empty segments).
+ */
+function pageSlug(pathname: string): string {
+  if (pathname.startsWith("/lp/")) return pathname.slice(4).split("/")[0] || "";
+  const segs = pathname.split("/").filter(Boolean);
+  return segs[segs.length - 1] || "";
+}
+
 /**
  * Direct-mode Keitaro capture. Mirrors the GTM injection path (driven by
  * site_settings), but fires ONLY on SMS-direct visits — when `sub_id_5` is in
@@ -33,6 +52,24 @@ export function Keitaro({ script }: { script: string }) {
         else el.textContent = old.textContent;
         document.head.appendChild(el);
       });
+
+      // Add the visited page's slug to the Keitaro click as sub_id_4 (a
+      // click-only reporting dimension). Registered now, before the async
+      // k.min.js initialises, so the queued ready() callback fires once the
+      // click token exists. update() keys off that token — it does NOT touch the
+      // URL, so sub_id_4 never round-trips to the affiliate (unlike
+      // sub_id_3/sub_id_5, which the LP query-forwarder sends downstream).
+      const slug = pageSlug(window.location.pathname);
+      const kt = (window as unknown as { KTracking?: KTracking }).KTracking;
+      if (slug && kt?.ready) {
+        kt.ready(() => {
+          try {
+            kt.update?.({ sub_id_4: slug });
+          } catch {
+            /* fail-safe */
+          }
+        });
+      }
     } catch {
       /* fail-safe: never break the page */
     }
