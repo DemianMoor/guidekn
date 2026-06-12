@@ -61,13 +61,17 @@ export async function GET(
   // Analytics IDs come from site_settings (GuideKin landing_pages have no
   // per-page gtm_id column, so there's no page-level override to prefer);
   // getAnalyticsSettings falls back to the previous hardcoded values.
-  const { gtmId, clarityId } = await getAnalyticsSettings();
+  const { gtmId, clarityId, keitaroScript } = await getAnalyticsSettings();
 
   if (gtmId) {
     html = injectGtm(html, gtmId);
   }
 
   html = injectClarity(html, clarityId);
+
+  if (keitaroScript) {
+    html = injectKeitaro(html, keitaroScript);
+  }
 
   html = injectUtmForwarder(html);
 
@@ -170,6 +174,29 @@ function injectClarity(html: string, clarityId: string): string {
   if (headMatch) {
     const insertAt = headMatch.index! + headMatch[0].length;
     return html.substring(0, insertAt) + script + html.substring(insertAt);
+  }
+  return html;
+}
+
+/**
+ * Direct-mode Keitaro capture for landing pages. Mirrors the GTM injection, but
+ * gated: the brand's stored Keitaro script runs ONLY on SMS-direct visits (when
+ * `sub_id_5` is present). The stored HTML is parked in an inert <template> (its
+ * <script> does not execute on parse), and a small gate script — only when the
+ * gate passes — recreates each <script> as a live DOM node so it executes. This
+ * handles both inline scripts and <script src> tags, and loads nothing for
+ * organic visits. Wrapped in try/catch so a malformed value never breaks the
+ * page. GTM is untouched and keeps firing on every pageview.
+ */
+function injectKeitaro(html: string, keitaroScript: string): string {
+  const block =
+    `<template id="keitaro-direct">${keitaroScript}</template>` +
+    `<script>(function(){try{if(!new URLSearchParams(window.location.search).has('sub_id_5'))return;var t=document.getElementById('keitaro-direct');if(!t)return;var ss=t.content.querySelectorAll('script');for(var i=0;i<ss.length;i++){var o=ss[i],n=document.createElement('script');for(var j=0;j<o.attributes.length;j++){n.setAttribute(o.attributes[j].name,o.attributes[j].value);}if(o.src){n.src=o.src;}else{n.textContent=o.textContent;}document.head.appendChild(n);}}catch(e){}})();</script>`;
+
+  const headMatch = html.match(/<head[^>]*>/i);
+  if (headMatch) {
+    const insertAt = headMatch.index! + headMatch[0].length;
+    return html.substring(0, insertAt) + block + html.substring(insertAt);
   }
   return html;
 }

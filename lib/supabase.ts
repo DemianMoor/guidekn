@@ -133,6 +133,7 @@ export async function getAnalyticsSettings(): Promise<{
   gtmId: string;
   ga4Id: string;
   clarityId: string;
+  keitaroScript: string;
 }> {
   let settings: Record<string, string> = {};
   try {
@@ -144,5 +145,7 @@ export async function getAnalyticsSettings(): Promise<{
     gtmId: settings.analytics_gtm_id || ANALYTICS_FALLBACK.gtmId,
     ga4Id: settings.analytics_ga4_id || ANALYTICS_FALLBACK.ga4Id,
     clarityId: settings.analytics_clarity_id || ANALYTICS_FALLBACK.clarityId,
+    // Direct-mode Keitaro capture. No fallback: blank/absent → inject nothing.
+    keitaroScript: settings.keitaro_tracking_script || "",
   };
 }

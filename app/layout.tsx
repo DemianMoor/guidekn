@@ -4,6 +4,7 @@ import "./globals.css";
 import { PopupProvider } from "@/lib/popup-context";
 import { SubscribePopup } from "@/components/subscribe-popup";
 import { Analytics } from "@/components/analytics";
+import { Keitaro } from "@/components/keitaro";
 import { getAnalyticsSettings } from "@/lib/supabase";
 
 const inter = Inter({
@@ -52,7 +53,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { gtmId } = await getAnalyticsSettings();
+  const { gtmId, keitaroScript } = await getAnalyticsSettings();
 
   return (
     <html lang="en" className={`${inter.variable} ${sourceSerif.variable}`}>
@@ -62,6 +63,7 @@ export default async function RootLayout({
           <SubscribePopup />
         </PopupProvider>
         <Analytics gtmId={gtmId} />
+        <Keitaro script={keitaroScript} />
       </body>
     </html>
   );
