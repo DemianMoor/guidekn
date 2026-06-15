@@ -179,14 +179,20 @@ function injectClarity(html: string, clarityId: string): string {
 }
 
 /**
- * Direct-mode Keitaro capture for landing pages. Mirrors the GTM injection, but
- * gated: the brand's stored Keitaro script runs ONLY on SMS-direct visits (when
- * `sub_id_5` is present). The stored HTML is parked in an inert <template> (its
- * <script> does not execute on parse), and a small gate script — only when the
- * gate passes — recreates each <script> as a live DOM node so it executes. This
- * handles both inline scripts and <script src> tags, and loads nothing for
- * organic visits. Wrapped in try/catch so a malformed value never breaks the
- * page. GTM is untouched and keeps firing on every pageview.
+ * Direct-mode Keitaro capture for landing pages. Mirrors the GTM injection and
+ * fires UNCONDITIONALLY on every /lp/[slug] load — every visitor registers a
+ * visit/click in Keitaro regardless of which URL or params they arrive with. The
+ * brand's stored Keitaro script is parked in an inert <template> (its <script>
+ * does not execute on parse), and a small script recreates each <script> as a
+ * live DOM node so it executes. This handles both inline scripts and <script
+ * src> tags. Wrapped in try/catch so a malformed value never breaks the page.
+ * GTM is untouched and keeps firing on every pageview.
+ *
+ * Any sub_ids present on the URL (sub_id3/sub_id_3, etc.) are still captured by
+ * the stored tracking script as before — only the previous sub_id_5 presence
+ * gate is removed, not the capture. Landing pages have content and dwell time
+ * (visitor reads, then clicks through), so the beacon fires on load with time to
+ * complete — there is no redirect race.
  *
  * It also adds the page slug to the click as sub_id_4 (a click-only reporting
  * dimension) via KTracking.update — keyed off the click token, so it never
@@ -197,7 +203,7 @@ function injectClarity(html: string, clarityId: string): string {
 function injectKeitaro(html: string, keitaroScript: string): string {
   const block =
     `<template id="keitaro-direct">${keitaroScript}</template>` +
-    `<script>(function(){try{if(!new URLSearchParams(window.location.search).has('sub_id_5'))return;var t=document.getElementById('keitaro-direct');if(!t)return;var ss=t.content.querySelectorAll('script');for(var i=0;i<ss.length;i++){var o=ss[i],n=document.createElement('script');for(var j=0;j<o.attributes.length;j++){n.setAttribute(o.attributes[j].name,o.attributes[j].value);}if(o.src){n.src=o.src;}else{n.textContent=o.textContent;}document.head.appendChild(n);}var p=window.location.pathname,slug;if(p.indexOf('/lp/')===0){slug=p.slice(4).split('/')[0];}else{var sg=p.split('/').filter(Boolean);slug=sg[sg.length-1]||'';}if(slug&&window.KTracking&&window.KTracking.ready){window.KTracking.ready(function(){try{window.KTracking.update({sub_id_4:slug});}catch(e){}});}}catch(e){}})();</script>`;
+    `<script>(function(){try{var t=document.getElementById('keitaro-direct');if(!t)return;var ss=t.content.querySelectorAll('script');for(var i=0;i<ss.length;i++){var o=ss[i],n=document.createElement('script');for(var j=0;j<o.attributes.length;j++){n.setAttribute(o.attributes[j].name,o.attributes[j].value);}if(o.src){n.src=o.src;}else{n.textContent=o.textContent;}document.head.appendChild(n);}var p=window.location.pathname,slug;if(p.indexOf('/lp/')===0){slug=p.slice(4).split('/')[0];}else{var sg=p.split('/').filter(Boolean);slug=sg[sg.length-1]||'';}if(slug&&window.KTracking&&window.KTracking.ready){window.KTracking.ready(function(){try{window.KTracking.update({sub_id_4:slug});}catch(e){}});}}catch(e){}})();</script>`;
 
   const headMatch = html.match(/<head[^>]*>/i);
   if (headMatch) {
