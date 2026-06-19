@@ -75,14 +75,41 @@ export async function GET(
 
   html = injectUtmForwarder(html);
 
+  // Injected last so the hints land first in <head>, ahead of the asset refs.
+  html = injectResourceHints(html);
+
   return new NextResponse(html, {
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "public, max-age=60, stale-while-revalidate=300",
+      // LP content changes rarely. 5 min fresh at the edge, then serve stale
+      // instantly while revalidating in the background — keeps origin hits
+      // (DB + Storage fetch) off the visitor's critical path. Edits propagate
+      // within ~max-age; deactivation within max-age + one revalidation.
+      "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
       "X-Content-Type-Options": "nosniff",
     },
   });
+}
+
+/**
+ * Opens the connection to Supabase Storage (where every rewritten asset lives)
+ * and warms DNS for GTM before the parser reaches those URLs in the body — so
+ * the cross-origin DNS+TLS handshake overlaps with HTML parsing instead of
+ * blocking the first asset fetch.
+ */
+function injectResourceHints(html: string): string {
+  const storageOrigin = new URL(STORAGE_PUBLIC_BASE).origin;
+  const tags =
+    `<link rel="preconnect" href="${storageOrigin}" crossorigin>` +
+    `<link rel="dns-prefetch" href="//www.googletagmanager.com">`;
+
+  const headMatch = html.match(/<head[^>]*>/i);
+  if (headMatch) {
+    const at = headMatch.index! + headMatch[0].length;
+    return html.substring(0, at) + tags + html.substring(at);
+  }
+  return html;
 }
 
 /**
@@ -112,7 +139,14 @@ function rewriteAssetPaths(html: string, slug: string): string {
 
   html = html.replace(
     /\b(href|src)=(["'])([^"']+)(["'])/gi,
-    (_match, attr, q1, url, q2) => `${attr}=${q1}${resolveUrl(url)}${q2}`
+    (_match, attr, q1, url, q2) => {
+      const abs = resolveUrl(url);
+      const out =
+        attr.toLowerCase() === "src" && isStorageRaster(abs)
+          ? optimizeImage(abs)
+          : abs;
+      return `${attr}=${q1}${out}${q2}`;
+    }
   );
 
   html = html.replace(
@@ -137,10 +171,28 @@ function rewriteAssetPaths(html: string, slug: string): string {
 
   html = html.replace(
     /url\((["']?)([^)"']+)(["']?)\)/gi,
-    (_match, q1, url, q2) => `url(${q1}${resolveUrl(url)}${q2})`
+    (_match, q1, url, q2) => {
+      const abs = resolveUrl(url);
+      const out = isStorageRaster(abs) ? optimizeImage(abs) : abs;
+      return `url(${q1}${out}${q2})`;
+    }
   );
 
   return html;
+}
+
+// Raster images Vercel's optimizer can shrink (WebP/AVIF + resize). Only images
+// that resolved to our Storage origin are wrapped, so next.config's
+// remotePatterns covers them. gif is excluded (optimizer passes animated GIFs
+// through unchanged) and svg is excluded (vector, already tiny).
+function isStorageRaster(url: string): boolean {
+  return (
+    url.startsWith(STORAGE_PUBLIC_BASE) && /\.(png|jpe?g|webp)(\?|$)/i.test(url)
+  );
+}
+
+function optimizeImage(url: string): string {
+  return `/_next/image?url=${encodeURIComponent(url)}&w=2048&q=75`;
 }
 
 /**
