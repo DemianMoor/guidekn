@@ -300,12 +300,25 @@ export function SubscribePopup() {
                     className="accent-sage mt-1 h-4 w-4 flex-shrink-0"
                   />
                   <span className="text-ink/85 text-xs leading-relaxed">
-                    By providing your phone number and checking this box, you
-                    are consenting to receive marketing text messages to that
-                    number from Guide Kin. Message frequency varies. Message
-                    and data rates may apply. Text HELP for help. Text STOP to
-                    unsubscribe. SMS opt-in data will not be shared or sold
-                    with 3rd parties.
+                    I give my express consent to receive recurring automated
+                    marketing notification texts to the phone number from Guide
+                    Kin. Message and data rates may apply. Msg frequency
+                    varies. I understand I can opt-out by replying
+                    &apos;STOP&apos; to any message, or get more info by
+                    replying &apos;HELP.&apos; Consent is not required for
+                    purchasing products or services. My number will not be
+                    shared with third parties or affiliates. View our{" "}
+                    <Link href="/terms" className="text-amber hover:text-sage">
+                      Terms of Services
+                    </Link>{" "}
+                    and{" "}
+                    <Link
+                      href="/privacy"
+                      className="text-amber hover:text-sage"
+                    >
+                      Privacy Policy
+                    </Link>
+                    .
                   </span>
                 </label>
               </div>
