@@ -134,6 +134,8 @@ export async function getAnalyticsSettings(): Promise<{
   ga4Id: string;
   clarityId: string;
   keitaroScript: string;
+  trackingDomain: string | null;
+  trackingSource: string | null;
 }> {
   let settings: Record<string, string> = {};
   try {
@@ -147,5 +149,10 @@ export async function getAnalyticsSettings(): Promise<{
     clarityId: settings.analytics_clarity_id || ANALYTICS_FALLBACK.clarityId,
     // Direct-mode Keitaro capture. No fallback: blank/absent → inject nothing.
     keitaroScript: settings.keitaro_tracking_script || "",
+    // Serve-time tracking-URL rewrite (lib/tracking-rewrite). No fallback by
+    // design: absent domain → rewriter off → landing pages serve exactly as
+    // uploaded. A settings-fetch failure lands here too, which is the safe side.
+    trackingDomain: settings.tracking_domain || null,
+    trackingSource: settings.tracking_source || null,
   };
 }

@@ -4,6 +4,7 @@ import {
   applyChromeSwap,
   effectiveChromeState,
 } from "@/lib/landing-page-chrome";
+import { rewriteTrackingUrls } from "@/lib/tracking-rewrite";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,7 +62,8 @@ export async function GET(
   // Analytics IDs come from site_settings (GuideKin landing_pages have no
   // per-page gtm_id column, so there's no page-level override to prefer);
   // getAnalyticsSettings falls back to the previous hardcoded values.
-  const { gtmId, clarityId, keitaroScript } = await getAnalyticsSettings();
+  const { gtmId, clarityId, keitaroScript, trackingDomain, trackingSource } =
+    await getAnalyticsSettings();
 
   if (gtmId) {
     html = injectGtm(html, gtmId);
@@ -74,6 +76,15 @@ export async function GET(
   }
 
   html = injectUtmForwarder(html);
+
+  // Runs after injectKeitaro so the injected visit script's own URLs (R_PATH,
+  // P_PATH, k.min.js src, <noscript> pixel) get rewritten alongside the stored
+  // CTA anchors — one pass, no separate templating of the stored script. With
+  // tracking_domain unset this is a no-op and the output is byte-identical.
+  html = rewriteTrackingUrls(html, {
+    domain: trackingDomain,
+    source: trackingSource,
+  });
 
   // Injected last so the hints land first in <head>, ahead of the asset refs.
   html = injectResourceHints(html);
