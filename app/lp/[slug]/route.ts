@@ -5,6 +5,7 @@ import {
   effectiveChromeState,
 } from "@/lib/landing-page-chrome";
 import { rewriteTrackingUrls } from "@/lib/tracking-rewrite";
+import { isValidPreviewToken } from "@/lib/lp-check-preview";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ const STORAGE_PUBLIC_BASE =
   "https://bdhujqomjvfgzbgicwev.supabase.co/storage/v1/object/public/landing-pages";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await context.params;
@@ -22,15 +23,27 @@ export async function GET(
     return new NextResponse("Not Found", { status: 404 });
   }
 
+  // A valid `?lpcheck=` token lets the LP checker load a page that is not yet
+  // active, so it can verify the CTAs on the page a visitor would actually get.
+  // Without one (no token, bad token, wrong slug, expired, or no
+  // LP_CHECK_CALLBACK_SECRET deployed) this is false and the lookup below is
+  // the unchanged production query.
+  const preview = isValidPreviewToken(
+    req.nextUrl.searchParams.get("lpcheck"),
+    slug
+  );
+
   const supabase = createSupabaseAdmin();
-  const { data: page } = await supabase
+  const pageQuery = supabase
     .from("landing_pages")
     .select(
       "slug, entry_file, is_active, use_site_chrome, chrome_revert_to, chrome_revert_at"
     )
-    .eq("slug", slug)
-    .eq("is_active", true)
-    .maybeSingle();
+    .eq("slug", slug);
+  const { data: page } = await (preview
+    ? pageQuery
+    : pageQuery.eq("is_active", true)
+  ).maybeSingle();
 
   if (!page) {
     return new NextResponse("Not Found", { status: 404 });
@@ -97,8 +110,12 @@ export async function GET(
       // instantly while revalidating in the background — keeps origin hits
       // (DB + Storage fetch) off the visitor's critical path. Edits propagate
       // within ~max-age; deactivation within max-age + one revalidation.
-      "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
+      // A preview response is never cached or indexed.
+      "Cache-Control": preview
+        ? "no-store"
+        : "public, max-age=300, stale-while-revalidate=86400",
       "X-Content-Type-Options": "nosniff",
+      ...(preview ? { "X-Robots-Tag": "noindex, nofollow" } : {}),
     },
   });
 }
