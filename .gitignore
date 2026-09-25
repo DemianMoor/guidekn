@@ -43,3 +43,6 @@ next-env.d.ts
 # data snapshots (contain subscriber PII — never commit)
 subscribers-snapshot.json
 dev-server.log
+
+# playwright test captures
+.playwright-mcp/
