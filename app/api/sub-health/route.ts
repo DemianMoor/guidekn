@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { gzipSync } from "node:zlib";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
+import { Resend } from "resend";
+import { render } from "@react-email/render";
 import { createSupabaseAdmin } from "@/lib/supabase";
+import SubHealthConfirmationEmail, {
+  SUB_HEALTH_CONFIRMATION_SUBJECT,
+} from "@/emails/sub-health-confirmation-email";
 import { canonicalJson, sha256Hex } from "@/lib/consent/hash";
 import {
   COVERAGE_INTERESTS,
@@ -36,6 +41,34 @@ function queryParams(pageUrl: string | null): Record<string, string | string[]> 
     // Unparseable URL: keep it verbatim in page_url, no params.
   }
   return params;
+}
+
+/**
+ * Transactional confirmation, sent for every successful signup regardless of
+ * which consents were checked. Failures are logged, never surfaced.
+ */
+async function sendConfirmationEmail(
+  to: string,
+  props: Parameters<typeof SubHealthConfirmationEmail>[0]
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.error("RESEND_API_KEY is not set. Sub-health confirmation not sent.");
+    return;
+  }
+  try {
+    const email = SubHealthConfirmationEmail(props);
+    const { error } = await new Resend(apiKey).emails.send({
+      from: process.env.RESEND_FROM_ADDRESS || "Guide Kin <onboarding@resend.dev>",
+      to,
+      subject: SUB_HEALTH_CONFIRMATION_SUBJECT,
+      html: await render(email),
+      text: await render(email, { plainText: true }),
+    });
+    if (error) console.error("Sub-health confirmation send error:", error);
+  } catch (err) {
+    console.error("Sub-health confirmation exception:", err);
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -193,6 +226,15 @@ export async function POST(request: NextRequest) {
           source: FORM_ID,
         });
     if (subscriberError) throw subscriberError;
+
+    after(() =>
+      sendConfirmationEmail(email, {
+        name: str(body.name, 200),
+        interests,
+        emailConsent: consentEmail,
+        smsConsent: consentSms,
+      })
+    );
 
     return NextResponse.json({ success: true });
   } catch (err) {
