@@ -65,6 +65,7 @@ Legend: ✅ Shipped · 🟡 Partial · ⛔ Blocked · ⏸ Deferred
 | Public picks (round-ups) | [app/picks/](app/picks/), [components/picks/](components/picks/) | ✅ | `pick_product_click` dataLayer event |
 | Subscribe page + popup | [app/subscribe/page.tsx](app/subscribe/page.tsx), [components/subscribe-popup.tsx](components/subscribe-popup.tsx), [app/api/subscribe/route.ts](app/api/subscribe/route.ts) | ✅ | Upserts `subscribers` on email; sends welcome email on email consent |
 | Health-coverage signup (`/sub-health`) | [app/sub-health/](app/sub-health/), [app/api/sub-health/route.ts](app/api/sub-health/route.ts), [lib/consent/](lib/consent/) | ✅ | Partner-traffic page. Interests `medicare`/`aca`/`other_healthcare`, ZIP, all query params → `subscribers`. Every submission writes an append-only `consent_records` row (consent text + version + SHA-256, IP, UA, page URL, referrer, rrweb recording path + hash, TrustedForm cert, whole-record SHA-256). No welcome email. |
+| Email unsubscribe | [app/unsubscribe/page.tsx](app/unsubscribe/page.tsx), [app/api/unsubscribe/route.ts](app/api/unsubscribe/route.ts), [lib/unsubscribe.ts](lib/unsubscribe.ts) | ✅ | Signed per-subscriber links (HMAC, no expiry) in the welcome and /sub-health confirmation emails, plus RFC 8058 `List-Unsubscribe` / `List-Unsubscribe-Post` headers. Unsubscribes on the button POST, never on GET (mail scanners). Email only: sets `consent_email=false` + `email_unsubscribed_at`; SMS consent, `status`, and `consent_records` untouched. |
 | Marketing partners page | [app/partners/page.tsx](app/partners/page.tsx) | ✅ | Renders the partner list of the current consent version |
 | Legal pages | [app/privacy/](app/privacy/), [app/terms/](app/terms/), [components/legal-page.tsx](components/legal-page.tsx) | ✅ | Rendered from the `legal_pages` table |
 | Landing pages (`/lp/[slug]`) | [app/lp/[slug]/route.ts](app/lp/%5Bslug%5D/route.ts), [lib/landing-page-chrome.ts](lib/landing-page-chrome.ts), [lib/tracking-rewrite.ts](lib/tracking-rewrite.ts), [lib/lp-check-preview.ts](lib/lp-check-preview.ts) | ✅ | Raw HTML from the `landing-pages` bucket; asset rewrite, GTM/Clarity/Keitaro inject, optional site-chrome swap, tracking-URL rewrite, signed `?lpcheck=` preview for inactive pages |
@@ -110,6 +111,7 @@ RESEND_API_KEY=
 RESEND_FROM_ADDRESS=            # e.g. "Guide Kin <hello@guidekn.com>"
 NEXT_PUBLIC_GTM_ID=             # fallback; site_settings.analytics_* wins
 TRUSTEDFORM_ENABLED=            # "true" to load TrustedForm on /sub-health
+UNSUBSCRIBE_SECRET=             # HMAC key for signed /unsubscribe links; rotating it breaks links in sent emails
 ```
 
 `.env.local` is git-ignored; production values live in Vercel project env. Never paste keys into chat or commit them.

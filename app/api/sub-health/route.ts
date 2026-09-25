@@ -14,6 +14,7 @@ import {
   consentTextSnapshot,
 } from "@/lib/consent/sub-health";
 import { isTrustedFormEnabled, parseTrustedFormCertUrl } from "@/lib/trustedform";
+import { listUnsubscribeHeaders, unsubscribePageUrl } from "@/lib/unsubscribe";
 
 const FORM_ID = "sub-health";
 const RECORDING_BUCKET = "consent-recordings";
@@ -49,7 +50,8 @@ function queryParams(pageUrl: string | null): Record<string, string | string[]> 
  */
 async function sendConfirmationEmail(
   to: string,
-  props: Parameters<typeof SubHealthConfirmationEmail>[0]
+  subscriberId: string,
+  props: Omit<Parameters<typeof SubHealthConfirmationEmail>[0], "unsubscribeUrl">
 ) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -57,13 +59,17 @@ async function sendConfirmationEmail(
     return;
   }
   try {
-    const email = SubHealthConfirmationEmail(props);
+    const email = SubHealthConfirmationEmail({
+      ...props,
+      unsubscribeUrl: unsubscribePageUrl(subscriberId),
+    });
     const { error } = await new Resend(apiKey).emails.send({
       from: process.env.RESEND_FROM_ADDRESS || "Guide Kin <onboarding@resend.dev>",
       to,
       subject: SUB_HEALTH_CONFIRMATION_SUBJECT,
       html: await render(email),
       text: await render(email, { plainText: true }),
+      headers: listUnsubscribeHeaders(subscriberId),
     });
     if (error) console.error("Sub-health confirmation send error:", error);
   } catch (err) {
@@ -228,7 +234,7 @@ export async function POST(request: NextRequest) {
     if (subscriberError) throw subscriberError;
 
     after(() =>
-      sendConfirmationEmail(email, {
+      sendConfirmationEmail(email, subscriberId, {
         name: str(body.name, 200),
         interests,
         emailConsent: consentEmail,

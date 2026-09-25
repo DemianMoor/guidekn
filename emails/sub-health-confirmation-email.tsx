@@ -19,6 +19,7 @@ interface SubHealthConfirmationEmailProps {
   interests: string[];
   emailConsent: boolean;
   smsConsent: boolean;
+  unsubscribeUrl: string;
 }
 
 const INTEREST_LABELS: Record<string, string> = {
@@ -28,7 +29,6 @@ const INTEREST_LABELS: Record<string, string> = {
 };
 
 const SITE_URL = "https://www.guidekn.com";
-const UNSUBSCRIBE_URL = "mailto:hello@guidekn.com?subject=Unsubscribe";
 
 const text = {
   color: "#2C2C2A",
@@ -48,6 +48,7 @@ export default function SubHealthConfirmationEmail({
   interests = [],
   emailConsent = false,
   smsConsent = false,
+  unsubscribeUrl,
 }: SubHealthConfirmationEmailProps) {
   const firstName = name?.trim().split(/\s+/)[0] || "there";
   const interestList = interests.map((i) => INTEREST_LABELS[i]).filter(Boolean).join(", ");
@@ -156,10 +157,10 @@ export default function SubHealthConfirmationEmail({
 
           <Text style={footer}>GuideKin (operated by Yelow Sp. z o.o.)</Text>
           <Text style={footer}>
-            <Link href={UNSUBSCRIBE_URL} style={footerLink}>
+            <Link href={unsubscribeUrl} style={footerLink}>
               Unsubscribe
             </Link>{" "}
-            (or reply &quot;unsubscribe&quot;) ·{" "}
+            ·{" "}
             <Link href={`${SITE_URL}/privacy`} style={footerLink}>
               Privacy Policy
             </Link>

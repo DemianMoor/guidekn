@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { render } from "@react-email/render";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import WelcomeEmail from "@/emails/welcome-email";
+import { listUnsubscribeHeaders, unsubscribePageUrl } from "@/lib/unsubscribe";
 
 const VALID_PILLARS = ["body", "mind", "glow", "roam", "bonds", "years"];
 
@@ -90,7 +91,7 @@ export async function POST(request: NextRequest) {
       console.log(`Subscribe source: ${source} (email=${cleanEmail})`);
     }
 
-    const { error: dbError } = await supabase.from("subscribers").upsert(
+    const { data: subscriber, error: dbError } = await supabase.from("subscribers").upsert(
       {
         name: cleanName,
         email: cleanEmail,
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
         status: "active",
       },
       { onConflict: "email" }
-    );
+    ).select("id").single();
 
     if (dbError) {
       console.error("Supabase insert error:", dbError);
@@ -142,6 +143,7 @@ export async function POST(request: NextRequest) {
               pillars: validPillars,
               emailConsent: effectiveConsentEmail,
               smsConsent: effectiveConsentSms,
+              unsubscribeUrl: unsubscribePageUrl(subscriber.id),
             })
           );
 
@@ -150,6 +152,7 @@ export async function POST(request: NextRequest) {
             to: cleanEmail,
             subject: "Welcome to Guide Kin",
             html,
+            headers: listUnsubscribeHeaders(subscriber.id),
           });
 
           if (emailError) {

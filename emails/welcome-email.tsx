@@ -17,6 +17,7 @@ interface WelcomeEmailProps {
   pillars: string[];
   emailConsent: boolean;
   smsConsent: boolean;
+  unsubscribeUrl: string;
 }
 
 const PILLAR_NAMES: Record<string, string> = {
@@ -33,6 +34,7 @@ export default function WelcomeEmail({
   pillars = [],
   emailConsent = true,
   smsConsent = false,
+  unsubscribeUrl,
 }: WelcomeEmailProps) {
   const firstName = name.split(" ")[0] || "kin";
   const pillarLabels = pillars
@@ -259,13 +261,12 @@ export default function WelcomeEmail({
                 margin: 0,
               }}
             >
-              Don&apos;t want emails from us? Reply to this email with
-              &quot;unsubscribe&quot; or click{" "}
+              Don&apos;t want emails from us?{" "}
               <Link
-                href="https://guidekn.vercel.app/unsubscribe"
+                href={unsubscribeUrl}
                 style={{ color: "#666", textDecoration: "underline" }}
               >
-                here
+                Unsubscribe here
               </Link>
               . We&apos;ll take you off the list immediately.
             </Text>
