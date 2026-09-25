@@ -17,8 +17,11 @@ export type SubHealthConsent = {
   smsAdvertiserName: string;
   /** Phrase inside `sms` rendered as a link to /partners. */
   smsPartnersLinkText: string;
-  /** Partners whose offers GuideKin texts about, shown on /partners. */
-  partners: string[];
+  /**
+   * Who the offers come from, shown on /partners: a description (hc-v1+) or a
+   * list of names (hc-v1-draft).
+   */
+  partners: string | string[];
 };
 
 export const SUB_HEALTH_CONSENT_VERSIONS: Record<string, SubHealthConsent> = {
@@ -36,9 +39,20 @@ export const SUB_HEALTH_CONSENT_VERSIONS: Record<string, SubHealthConsent> = {
       "Partner name placeholder 3",
     ],
   },
+  "hc-v1": {
+    id: "hc-v1",
+    email:
+      "I consent to receive marketing and editorial emails from GuideKin (operated by Yelow Sp. z o.o.). Frequency varies, typically one email per week. I can unsubscribe any time.",
+    sms:
+      "By checking this box, I agree to receive recurring marketing text messages, including via automated technology, from GuideKin at the number provided about Medicare, ACA, and health insurance offers from our partners. Consent is not a condition of purchase. Msg & data rates may apply. Msg frequency varies. Reply STOP to opt out, HELP for help.",
+    smsAdvertiserName: "GuideKin",
+    smsPartnersLinkText: "offers from our partners",
+    partners:
+      "GuideKin works with licensed insurance agencies, brokers, and health plan providers to bring you Medicare, ACA, and other health coverage offers. GuideKin is the only sender of our messages; we do not sell or share your phone number with these partners.",
+  },
 };
 
-export const CURRENT_SUB_HEALTH_CONSENT_VERSION = "hc-v1-draft";
+export const CURRENT_SUB_HEALTH_CONSENT_VERSION = "hc-v1";
 
 export const CURRENT_SUB_HEALTH_CONSENT =
   SUB_HEALTH_CONSENT_VERSIONS[CURRENT_SUB_HEALTH_CONSENT_VERSION];
