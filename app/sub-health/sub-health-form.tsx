@@ -182,8 +182,8 @@ export function SubHealthForm() {
       <main>
         <SubscribeHero eyebrow="Health coverage" title="Find The Right Health Coverage Plan with GuideKin">
           Leave your details below and we will reach out with the best offer
-          based on your location. Notifications are fully free, and you can
-          opt out anytime.
+          based on your location. Signing up is free, and you can opt out
+          anytime.
         </SubscribeHero>
 
         <SubscribeFormCard onSubmit={handleSubmit} containerProps={tf("offer")}>
