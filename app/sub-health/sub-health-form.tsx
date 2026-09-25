@@ -47,10 +47,11 @@ function SmsConsentText() {
   );
 }
 
+/** Sits directly on the footer: -mb-20 cancels SiteFooter's mt-20 gap. */
 function Disclaimer() {
   return (
-    <section className="bg-cream border-t border-stone">
-      <p className="text-ink/60 mx-auto max-w-2xl px-6 py-6 text-center text-xs leading-relaxed">
+    <section className="bg-cream border-t border-stone -mb-20">
+      <p className="text-ink/60 mx-auto max-w-2xl px-6 py-8 text-center text-xs leading-relaxed">
         GuideKin is not affiliated with or endorsed by the U.S. government or
         the federal Medicare program.
       </p>
@@ -179,17 +180,17 @@ export function SubHealthForm() {
       <SiteHeader />
 
       <main>
-        <SubscribeHero eyebrow="Health coverage" title="Find the right Medicare or ACA plan.">
-          Tell us what coverage you&apos;re looking at and where you live, and
-          we&apos;ll send you plan information that fits. Free, and you can
-          opt out any time.
+        <SubscribeHero eyebrow="Health coverage" title="Find The Right Health Coverage Plan with GuideKin">
+          Leave your details below and we will reach out with the best offer
+          based on your location. Notifications are fully free, and you can
+          opt out anytime.
         </SubscribeHero>
 
         <SubscribeFormCard onSubmit={handleSubmit} containerProps={tf("offer")}>
-          <SectionLabel>Who you are</SectionLabel>
+          <SectionLabel>Share Your Info</SectionLabel>
 
           <div className="mt-6 space-y-5">
-            <TextField id="name" label="Name" type="text" autoComplete="name" required />
+            <TextField id="name" label="Full Name" type="text" autoComplete="name" required />
             <TextField
               id="email"
               label="Email"
