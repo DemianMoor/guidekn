@@ -15,6 +15,7 @@ import {
 } from "@/lib/consent/sub-health";
 import { isTrustedFormEnabled, parseTrustedFormCertUrl } from "@/lib/trustedform";
 import { listUnsubscribeHeaders, unsubscribePageUrl } from "@/lib/unsubscribe";
+import { safeError } from "@/lib/log-safe";
 
 const FORM_ID = "sub-health";
 const RECORDING_BUCKET = "consent-recordings";
@@ -71,9 +72,9 @@ async function sendConfirmationEmail(
       text: await render(email, { plainText: true }),
       headers: listUnsubscribeHeaders(subscriberId),
     });
-    if (error) console.error("Sub-health confirmation send error:", error);
+    if (error) console.error("Sub-health confirmation send error:", safeError(error));
   } catch (err) {
-    console.error("Sub-health confirmation exception:", err);
+    console.error("Sub-health confirmation exception:", safeError(err));
   }
 }
 
@@ -141,7 +142,7 @@ export async function POST(request: NextRequest) {
         .from(RECORDING_BUCKET)
         .upload(path, bytes, { contentType: "application/gzip", upsert: false });
       if (error) {
-        console.error("Consent recording upload failed:", error);
+        console.error("Consent recording upload failed:", safeError(error));
       } else {
         recordingPath = path;
         recordingSha256 = sha256Hex(bytes);
@@ -244,7 +245,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Sub-health route error:", err);
+    console.error("Sub-health route error:", safeError(err));
     return NextResponse.json(
       { error: "Something went wrong. Please try again." },
       { status: 500 }

@@ -4,6 +4,7 @@ import { render } from "@react-email/render";
 import { createSupabaseAdmin } from "@/lib/supabase";
 import WelcomeEmail from "@/emails/welcome-email";
 import { listUnsubscribeHeaders, unsubscribePageUrl } from "@/lib/unsubscribe";
+import { safeError } from "@/lib/log-safe";
 
 const VALID_PILLARS = ["body", "mind", "glow", "roam", "bonds", "years"];
 
@@ -19,7 +20,6 @@ export async function POST(request: NextRequest) {
       consent_email,
       consent_sms,
       tcpa_accepted,
-      source,
     } = body as {
       name?: string;
       email?: string;
@@ -28,7 +28,6 @@ export async function POST(request: NextRequest) {
       consent_email?: boolean;
       consent_sms?: boolean;
       tcpa_accepted?: boolean;
-      source?: string;
     };
 
     // The popup form sends `tcpa_accepted` instead of separate consent flags.
@@ -87,29 +86,50 @@ export async function POST(request: NextRequest) {
     const cleanName = rawName;
     const cleanEmail = email.trim().toLowerCase();
 
-    if (source) {
-      console.log(`Subscribe source: ${source} (email=${cleanEmail})`);
-    }
+    // Merge into an existing subscriber: keep existing pillars and add new
+    // ones, and never drop a consent already on file (e.g. SMS consent given
+    // on /sub-health). A consent timestamp moves only when that consent is
+    // given in this submission.
+    const { data: existing, error: lookupError } = await supabase
+      .from("subscribers")
+      .select("id, phone, pillars, consent_email, consent_sms, email_consent_at, sms_consent_at")
+      .eq("email", cleanEmail)
+      .maybeSingle();
 
-    const { data: subscriber, error: dbError } = await supabase.from("subscribers").upsert(
-      {
-        name: cleanName,
-        email: cleanEmail,
-        phone: phone?.trim() || null,
-        pillars: validPillars,
-        consent_email: effectiveConsentEmail,
-        consent_sms: effectiveConsentSms,
-        email_consent_at: effectiveConsentEmail ? now : null,
-        sms_consent_at: effectiveConsentSms ? now : null,
-        ip_address: ip,
-        user_agent: userAgent,
-        status: "active",
-      },
-      { onConflict: "email" }
-    ).select("id").single();
+    const fields = {
+      name: cleanName,
+      phone: phone?.trim() || existing?.phone || null,
+      consent_email: effectiveConsentEmail || !!existing?.consent_email,
+      consent_sms: effectiveConsentSms || !!existing?.consent_sms,
+      email_consent_at: effectiveConsentEmail ? now : existing?.email_consent_at ?? null,
+      sms_consent_at: effectiveConsentSms ? now : existing?.sms_consent_at ?? null,
+      ip_address: ip,
+      user_agent: userAgent,
+      status: "active",
+    };
 
-    if (dbError) {
-      console.error("Supabase insert error:", dbError);
+    const { data: subscriber, error: dbError } = lookupError
+      ? { data: null, error: lookupError }
+      : existing
+        ? await supabase
+            .from("subscribers")
+            .update({
+              ...fields,
+              pillars: VALID_PILLARS.filter(
+                (p) => validPillars.includes(p) || existing.pillars?.includes(p)
+              ),
+            })
+            .eq("id", existing.id)
+            .select("id")
+            .single()
+        : await supabase
+            .from("subscribers")
+            .insert({ ...fields, email: cleanEmail, pillars: validPillars })
+            .select("id")
+            .single();
+
+    if (dbError || !subscriber) {
+      console.error("Supabase insert error:", safeError(dbError));
       return NextResponse.json(
         {
           error:
@@ -119,16 +139,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-   // Send welcome email if they consented to email
-    console.log("📧 Email block reached. consent_email:", effectiveConsentEmail);
-
+    // Send welcome email if they consented to email
     if (effectiveConsentEmail) {
       const resendApiKey = process.env.RESEND_API_KEY;
       const fromAddress =
         process.env.RESEND_FROM_ADDRESS || "GuideKin <onboarding@resend.dev>";
-
-      console.log("📧 RESEND_API_KEY present?", !!resendApiKey, "starts with:", resendApiKey?.slice(0, 5));
-      console.log("📧 fromAddress:", fromAddress);
 
       if (!resendApiKey) {
         // Don't fail the subscription if email is misconfigured — just log it.
@@ -156,18 +171,18 @@ export async function POST(request: NextRequest) {
           });
 
           if (emailError) {
-            console.error("Resend send error:", emailError);
+            console.error("Resend send error:", safeError(emailError));
             // Subscription succeeded, email failed — don't block user.
           }
         } catch (err) {
-          console.error("Resend exception:", err);
+          console.error("Resend exception:", safeError(err));
         }
       }
     }
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("Subscribe route error:", err);
+    console.error("Subscribe route error:", safeError(err));
     return NextResponse.json(
       { error: "Something went wrong. Please try again." },
       { status: 500 }

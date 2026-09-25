@@ -51,7 +51,8 @@ Do not re-add admin routes here.
 5. **No literal pillar folders.** `app/` has only `[pillar]`. Static routes (`/subscribe`, `/sub-health`, `/partners`, `/about`, `/picks`) take precedence over it.
 6. **Article hero images always render through `<ArticleImage>`** from [components/article-image.tsx](components/article-image.tsx).
 7. **PowerShell square-bracket gotcha.** For paths like `app/[pillar]/page.tsx`, use `-LiteralPath` or backtick-escape the brackets.
-8. **`guidekin-schema-dump.sql` is stale** (2026-06-08; still shows the old `consent_*_at`/`consent_ip` subscriber columns). Query the live DB for the current schema.
+8. **Never log secrets or personal data.** Pass errors through `safeError()` from [lib/log-safe.ts](lib/log-safe.ts) — Postgres error `details` echo the failing row (email, phone).
+9. **`guidekin-schema-dump.sql` is stale** (2026-06-08; still shows the old `consent_*_at`/`consent_ip` subscriber columns). Query the live DB for the current schema.
 
 ---
 
@@ -63,7 +64,7 @@ Legend: ✅ Shipped · 🟡 Partial · ⛔ Blocked · ⏸ Deferred
 |---|---|---|---|
 | Homepage, pillar pages, article reading | [app/page.tsx](app/page.tsx), [app/[pillar]/](app/[pillar]/) | ✅ | |
 | Public picks (round-ups) | [app/picks/](app/picks/), [components/picks/](components/picks/) | ✅ | `pick_product_click` dataLayer event |
-| Subscribe page + popup | [app/subscribe/page.tsx](app/subscribe/page.tsx), [components/subscribe-popup.tsx](components/subscribe-popup.tsx), [app/api/subscribe/route.ts](app/api/subscribe/route.ts) | ✅ | Upserts `subscribers` on email; sends welcome email on email consent |
+| Subscribe page + popup | [app/subscribe/page.tsx](app/subscribe/page.tsx), [components/subscribe-popup.tsx](components/subscribe-popup.tsx), [app/api/subscribe/route.ts](app/api/subscribe/route.ts) | ✅ | Merges into `subscribers` by email (adds pillars, never drops a consent on file); sends welcome email on email consent |
 | Health-coverage signup (`/sub-health`) | [app/sub-health/](app/sub-health/), [app/api/sub-health/route.ts](app/api/sub-health/route.ts), [lib/consent/](lib/consent/) | ✅ | Partner-traffic page. Interests `medicare`/`aca`/`other_healthcare`, ZIP, all query params → `subscribers`. Every submission writes an append-only `consent_records` row (consent text + version + SHA-256, IP, UA, page URL, referrer, rrweb recording path + hash, TrustedForm cert, whole-record SHA-256). No welcome email. |
 | Email unsubscribe | [app/unsubscribe/page.tsx](app/unsubscribe/page.tsx), [app/api/unsubscribe/route.ts](app/api/unsubscribe/route.ts), [lib/unsubscribe.ts](lib/unsubscribe.ts) | ✅ | Signed per-subscriber links (HMAC, no expiry) in the welcome and /sub-health confirmation emails, plus RFC 8058 `List-Unsubscribe` / `List-Unsubscribe-Post` headers. Unsubscribes on the button POST, never on GET (mail scanners). Email only: sets `consent_email=false` + `email_unsubscribed_at`; SMS consent, `status`, and `consent_records` untouched. |
 | Marketing partners page | [app/partners/page.tsx](app/partners/page.tsx) | ✅ | Renders the partner list of the current consent version |
@@ -131,7 +132,5 @@ Ship: `git add <specific files>`, commit, `git push` — Vercel auto-deploys `ma
 
 ## 9. Open follow-ups
 
-1. **`/api/subscribe` upsert overwrites existing rows.** Re-subscribing replaces `pillars` and the consent flags — including turning off `consent_sms` previously granted on `/sub-health`. `/api/sub-health` merges instead; `/api/subscribe` should too.
-2. **`subscribers.source` is never written by `/api/subscribe`** — the popup sends `source: "popup"` but the route only logs it.
-3. **Console noise in `/api/subscribe`** — emoji-prefixed `console.log` lines and a Resend key-prefix log.
-4. **PROJECT_CONTEXT.md is behind:** admin auth, admin location (central admin), site settings, "Related picks" claim.
+1. **`subscribers.source` is never written by `/api/subscribe`** — the popup sends `source: "popup"`; the route ignores it.
+2. **PROJECT_CONTEXT.md is behind:** admin auth, admin location (central admin), site settings, "Related picks" claim.
