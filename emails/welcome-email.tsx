@@ -45,7 +45,7 @@ export default function WelcomeEmail({
     <Html>
       <Head />
       <Preview>
-        Welcome to Guide Kin — quiet, useful writing for adults 35+
+        Welcome to GuideKin — quiet, useful writing for adults 35+
       </Preview>
       <Tailwind>
         <Body
@@ -73,7 +73,7 @@ export default function WelcomeEmail({
                   letterSpacing: "-0.01em",
                 }}
               >
-                Guide Kin
+                GuideKin
               </Text>
             </Section>
 
@@ -112,7 +112,7 @@ export default function WelcomeEmail({
                 margin: "0 0 16px 0",
               }}
             >
-              Guide Kin is written for adults 35+ figuring out what&apos;s
+              GuideKin is written for adults 35+ figuring out what&apos;s
               next — honestly, plainspoken, and from people who&apos;ve been
               there. Six topics: Body, Mind, Glow, Roam, Bonds, Years.
               That&apos;s it. No noise, no upsell, no defying anything.
@@ -230,7 +230,7 @@ export default function WelcomeEmail({
                 margin: 0,
               }}
             >
-              — the Guide Kin team
+              — the GuideKin team
             </Text>
 
             <Hr
@@ -249,7 +249,7 @@ export default function WelcomeEmail({
                 margin: "0 0 8px 0",
               }}
             >
-              Guide Kin is operated by Yelow Sp. z o.o. We won&apos;t sell
+              GuideKin is operated by Yelow Sp. z o.o. We won&apos;t sell
               your data.
             </Text>
 

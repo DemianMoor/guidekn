@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     if (effectiveConsentEmail) {
       const resendApiKey = process.env.RESEND_API_KEY;
       const fromAddress =
-        process.env.RESEND_FROM_ADDRESS || "Guide Kin <onboarding@resend.dev>";
+        process.env.RESEND_FROM_ADDRESS || "GuideKin <onboarding@resend.dev>";
 
       console.log("📧 RESEND_API_KEY present?", !!resendApiKey, "starts with:", resendApiKey?.slice(0, 5));
       console.log("📧 fromAddress:", fromAddress);
@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
           const { error: emailError } = await resend.emails.send({
             from: fromAddress,
             to: cleanEmail,
-            subject: "Welcome to Guide Kin",
+            subject: "Welcome to GuideKin",
             html,
             headers: listUnsubscribeHeaders(subscriber.id),
           });
