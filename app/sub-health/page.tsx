@@ -13,6 +13,8 @@ export const metadata = {
   title: "Medicare and ACA plan information",
   description:
     "Get Medicare and ACA / Health Insurance Marketplace plan information from Guide Kin.",
+  // Reached only via partner links.
+  robots: { index: false, follow: false },
 };
 
 export default function SubHealthPage() {

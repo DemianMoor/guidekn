@@ -5,6 +5,8 @@ import { CURRENT_SUB_HEALTH_CONSENT } from "@/lib/consent/sub-health";
 export const metadata = {
   title: "Our partners",
   description: "The partners whose Medicare, ACA, and health insurance offers GuideKin texts about.",
+  // Reached only from the /sub-health consent text.
+  robots: { index: false, follow: false },
 };
 
 export default function PartnersPage() {
