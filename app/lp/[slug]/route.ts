@@ -90,10 +90,11 @@ export async function GET(
 
   html = injectUtmForwarder(html);
 
-  // Runs after injectKeitaro so the injected visit script's own URLs (R_PATH,
-  // P_PATH, k.min.js src, <noscript> pixel) get rewritten alongside the stored
-  // CTA anchors — one pass, no separate templating of the stored script. With
-  // tracking_domain unset this is a no-op and the output is byte-identical.
+  // Runs last so it covers every injected block. Points every known tracker host
+  // (lib/tracking-rewrite.ts) at this brand's tracking domain and tags campaign
+  // clicks with its source; the injected visit script is skipped, since the
+  // stored script already carries this brand's own host. With tracking_domain
+  // unset this is a no-op and the output is byte-identical.
   html = rewriteTrackingUrls(html, {
     domain: trackingDomain,
     source: trackingSource,
