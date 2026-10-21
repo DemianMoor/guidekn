@@ -4,7 +4,13 @@ import {
   applyChromeSwap,
   effectiveChromeState,
 } from "@/lib/landing-page-chrome";
-import { rewriteTrackingUrls } from "@/lib/tracking-rewrite";
+import {
+  backstopScript,
+  pickSubIds,
+  resolveTrackingHost,
+  rewriteTrackingUrls,
+  routeScriptsThroughPassthrough,
+} from "@/lib/subid-guarantee/core";
 import { isValidPreviewToken } from "@/lib/lp-check-preview";
 
 export const runtime = "nodejs";
@@ -67,6 +73,19 @@ export async function GET(
   // so its scripts can't be stripped by the chrome swap.
   html = rewriteAssetPaths(html, slug);
 
+  // The visitor's sub_id* go into every tracker URL on the page (lib/subid-guarantee).
+  // Safe to cache: the edge keys on the full URL, query included.
+  const subIds = pickSubIds(req.nextUrl.searchParams);
+
+  // The page's own .js files go through /lp/<slug>/~js/ so tracker URLs inside
+  // them get the same rewrite.
+  html = routeScriptsThroughPassthrough(html, {
+    storageBase: STORAGE_PUBLIC_BASE,
+    slug,
+    lpPath: "/lp/",
+    subIds,
+  });
+
   const { effective: useSiteChrome } = effectiveChromeState(page);
   if (useSiteChrome) {
     html = applyChromeSwap(html).html;
@@ -91,14 +110,22 @@ export async function GET(
   html = injectUtmForwarder(html);
 
   // Runs last so it covers every injected block. Points every known tracker host
-  // (lib/tracking-rewrite.ts) at this brand's tracking domain and tags campaign
-  // clicks with its source; the injected visit script is skipped, since the
-  // stored script already carries this brand's own host. With tracking_domain
-  // unset this is a no-op and the output is byte-identical.
+  // (lib/subid-guarantee/core.ts) at this brand's tracking domain and tags
+  // campaign clicks with its source and the request's sub_id*; the injected
+  // visit script is host-swapped only. With tracking_domain unset this is a
+  // no-op and the output is byte-identical.
   html = rewriteTrackingUrls(html, {
     domain: trackingDomain,
     source: trackingSource,
+    subIds,
   });
+
+  // Runtime backstop for tracker URLs a page builds from scratch. Only when the
+  // request carries sub_id*.
+  const trackingHost = resolveTrackingHost(trackingDomain);
+  if (subIds.length && trackingHost) {
+    html = injectAfterHead(html, backstopScript(trackingHost));
+  }
 
   // Injected last so the hints land first in <head>, ahead of the asset refs.
   html = injectResourceHints(html);
@@ -119,6 +146,13 @@ export async function GET(
       ...(preview ? { "X-Robots-Tag": "noindex, nofollow" } : {}),
     },
   });
+}
+
+function injectAfterHead(html: string, block: string): string {
+  const headMatch = html.match(/<head[^>]*>/i);
+  if (!headMatch) return html;
+  const at = headMatch.index! + headMatch[0].length;
+  return html.substring(0, at) + block + html.substring(at);
 }
 
 /**

@@ -149,7 +149,7 @@ export async function getAnalyticsSettings(): Promise<{
     clarityId: settings.analytics_clarity_id || ANALYTICS_FALLBACK.clarityId,
     // Direct-mode Keitaro capture. No fallback: blank/absent → inject nothing.
     keitaroScript: settings.keitaro_tracking_script || "",
-    // Serve-time tracking-URL rewrite (lib/tracking-rewrite). No fallback by
+    // Serve-time tracking-URL rewrite (lib/subid-guarantee/core.ts). No fallback by
     // design: absent domain → rewriter off → landing pages serve exactly as
     // uploaded. A settings-fetch failure lands here too, which is the safe side.
     trackingDomain: settings.tracking_domain || null,

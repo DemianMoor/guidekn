@@ -3,7 +3,7 @@
 // Run: npm test   (built-in Node test runner, no packages)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rewriteTrackingUrls } from "../lib/tracking-rewrite.ts";
+import { rewriteTrackingUrls } from "../lib/subid-guarantee/core.ts";
 
 const BRANDS = [
   { domain: "go.gdkn.org", source: "guidekin" },
