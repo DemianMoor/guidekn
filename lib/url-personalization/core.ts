@@ -54,9 +54,70 @@ if(!ok)continue;var d=pair(el);el.removeAttribute('hidden');el.style.display='';
 
 export const PERSONALIZATION_SCRIPT = `<script>${CLIENT.replace(/\n/g, '')}</script>`
 
-// Switch off: the input, unchanged. Switch on: the script once, just before </body> (appended when there is none).
+// ---- First name (data-fill="first-name") ---------------------------------------------------------------------------
+// Only for a page that carries the marker: everything above is unchanged, and a page without it is served exactly as
+// before. CamMan's endpoint takes the visit's sub_id1 and answers 200 {"first_name":"Maria"|null}; the name never
+// appears in a URL. Rules (owner-approved): one plain GET with no credentials, started at the top of <head> so it
+// overlaps parsing; FIRST_NAME_BUDGET_MS (450 ms) from then, after which the fallback/default stays; text only (textContent); every filled
+// element is masked for Clarity; a marker inside a link or button is never filled; nothing is written to the URL, links,
+// cookies, storage, the dataLayer or a global. Blocks that use the name stay invisible (space kept, no reflow) until the
+// answer or that mark, whichever is first, so the headline never visibly swaps.
+
+// The brand's short-link host that is not behind Cloudflare, so a bot challenge can never break the lookup.
+export const FIRST_NAME_HOSTS: Record<string, string> = {
+  'guidekn.com': 'g.guidekn.com',
+  'lumzen.co': 'g.lumzen.co',
+  'fitsyou.net': 'g.fitsyou.net',
+  'blogcascade.com': 'go.blogcascade.com',
+}
+export const FIRST_NAME_BUDGET_MS = 450
+const FIRST_NAME_MARKER = /data-fill\s*=\s*["']?first-name["'\s>]/i
+
+const FN = '[data-fill="first-name"]'
+const FIRST_NAME_STYLE =
+  `html[data-up-fn] ${FN},html[data-up-fn] [data-personal]:has(${FN}),` +
+  `html[data-up-fn] [data-personal]:has(${FN})+[data-default],html[data-up-fn] [data-default]:has(+[data-personal] ${FN})` +
+  `{visibility:hidden}`
+
+const FIRST_NAME_CLIENT = `(function(){try{
+var H=${JSON.stringify(FIRST_NAME_HOSTS)},S=${JSON.stringify(US_STATES)};
+var q=new URLSearchParams(location.search),t=q.get('sub_id1'),h=H[location.hostname.replace(/^www\\./,'')];
+if(!t||!h||!window.fetch)return;
+var D=document.documentElement;D.setAttribute('data-up-fn','');
+var l=document.createElement('link');l.rel='preconnect';l.href='https:/'+'/'+h;l.crossOrigin='anonymous';document.head.appendChild(l);
+var z=(q.get('zip')||'').trim(),s=(q.get('st')||'').trim().toUpperCase(),n='',done=false;
+var v={zip:/^[0-9]{5}$/.test(z)?z:'',state:Object.prototype.hasOwnProperty.call(S,s)?s:''};v['state-name']=v.state?S[v.state]:'';
+function inCta(e){return !!(e.closest&&e.closest('a,button'));}
+function val(e){var k=e.getAttribute('data-fill');if(k==='first-name')return inCta(e)?'':n;return Object.prototype.hasOwnProperty.call(v,k)?v[k]:'';}
+function pair(e){var a=e.nextElementSibling,b=e.previousElementSibling;if(a&&a.hasAttribute('data-default'))return a;if(b&&b.hasAttribute('data-default'))return b;return null;}
+function fill(e){var x=val(e);if(!x)return;if(e.getAttribute('data-fill')==='first-name')e.setAttribute('data-clarity-mask','true');e.textContent=x;}
+function apply(){var f=document.querySelectorAll('${FN}');for(var i=0;i<f.length;i++)fill(f[i]);
+var ps=document.querySelectorAll('[data-personal]');for(var j=0;j<ps.length;j++){var e=ps[j];if(!e.querySelector('${FN}'))continue;
+var fs=e.querySelectorAll('[data-fill]'),ok=fs.length>0;for(var k=0;k<fs.length;k++)if(!val(fs[k]))ok=false;if(!ok)continue;
+for(var m=0;m<fs.length;m++)fill(fs[m]);var d=pair(e);e.removeAttribute('hidden');e.style.display='';if(d)d.style.display='none';}}
+function finish(){if(done)return;done=true;clearTimeout(w);if(c)c.abort();apply();D.removeAttribute('data-up-fn');
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply);}
+var c=window.AbortController?new AbortController():null,w=setTimeout(finish,${FIRST_NAME_BUDGET_MS});
+fetch('https:/'+'/'+h+'/api/public/first-name?t='+encodeURIComponent(t),{credentials:'omit',cache:'no-store',referrerPolicy:'no-referrer',signal:c?c.signal:undefined})
+.then(function(r){return r.ok?r.json():null}).then(function(j){if(done)return;var x=j&&typeof j.first_name==='string'?j.first_name.trim():'';
+if(/^[A-Za-z][A-Za-z' -]{0,39}$/.test(x))n=x;finish();}).catch(function(){finish();});
+}catch(e){document.documentElement.removeAttribute('data-up-fn');}})();`
+
+export const FIRST_NAME_HEAD = `<style>${FIRST_NAME_STYLE}</style><script>${FIRST_NAME_CLIENT.replace(/\n/g, '')}</script>`
+
+export function hasFirstNameMarker(html: string): boolean {
+  return FIRST_NAME_MARKER.test(html)
+}
+
+// Switch off: the input, unchanged. Switch on: the script once, just before </body> (appended when there is none) and,
+// only on a page with a first-name marker, FIRST_NAME_HEAD right after <head> (prepended when there is none).
 export function injectPersonalization(html: string, enabled: boolean): string {
   if (!enabled) return html
   const at = html.search(/<\/body\s*>/i)
-  return at === -1 ? html + PERSONALIZATION_SCRIPT : html.slice(0, at) + PERSONALIZATION_SCRIPT + html.slice(at)
+  let out = at === -1 ? html + PERSONALIZATION_SCRIPT : html.slice(0, at) + PERSONALIZATION_SCRIPT + html.slice(at)
+  if (hasFirstNameMarker(html)) {
+    const head = out.match(/<head[^>]*>/i)
+    out = head ? out.slice(0, head.index! + head[0].length) + FIRST_NAME_HEAD + out.slice(head.index! + head[0].length) : FIRST_NAME_HEAD + out
+  }
+  return out
 }
