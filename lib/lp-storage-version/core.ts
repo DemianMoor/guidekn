@@ -10,6 +10,7 @@
 // cached. The bytes fetched are the stored file either way, so the served page is unchanged.
 //
 // Any failure (LIST error, file not listed, odd ETag) gives `null`, and the caller fetches the plain address exactly as before.
+// Listings are cached per server instance for LIST_TTL_MS (below), so a save is live within about a minute.
 
 export type ListedObject = { name: string; metadata?: { eTag?: unknown } | null }
 type ListResult = { data: ListedObject[] | null; error: unknown }
@@ -35,10 +36,27 @@ const split = (path: string) => {
   return { dir: path.slice(0, at), name: path.slice(at + 1) }
 }
 
+// Every SMS visit arrives on its own URL (per-recipient sub_id1), so nearly every page view misses the edge cache and
+// would pay for a LIST call. Successful listings are kept per server instance for LIST_TTL_MS: a save then reaches
+// visitors within that window. Failures are never kept, so an error still falls back to the plain fetch every time.
+export const LIST_TTL_MS = 60_000
+const MAX_ENTRIES = 2000
+const listCache = new Map<string, { at: number; data: ListedObject[] }>()
+
+export function clearListCache(): void {
+  listCache.clear()
+}
+
 async function list(client: StorageLister, dir: string, search?: string): Promise<ListedObject[] | null> {
+  const key = `${dir}?${search ?? ''}`
+  const hit = listCache.get(key)
+  if (hit && Date.now() - hit.at < LIST_TTL_MS) return hit.data
   try {
     const { data, error } = await client.storage.from(BUCKET).list(dir, { limit: 1000, ...(search ? { search } : {}) })
-    return error ? null : data
+    if (error || !data) return null
+    if (listCache.size >= MAX_ENTRIES) listCache.clear()
+    listCache.set(key, { at: Date.now(), data })
+    return data
   } catch {
     return null
   }
