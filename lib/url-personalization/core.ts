@@ -58,10 +58,10 @@ export const PERSONALIZATION_SCRIPT = `<script>${CLIENT.replace(/\n/g, '')}</scr
 // Only for a page that carries the marker: everything above is unchanged, and a page without it is served exactly as
 // before. CamMan's endpoint takes the visit's sub_id1 and answers 200 {"first_name":"Maria"|null}; the name never
 // appears in a URL. Rules (owner-approved): one plain GET with no credentials, started at the top of <head> so it
-// overlaps parsing; 300 ms from then, after which the fallback/default stays; text only (textContent); every filled
+// overlaps parsing; FIRST_NAME_BUDGET_MS (450 ms) from then, after which the fallback/default stays; text only (textContent); every filled
 // element is masked for Clarity; a marker inside a link or button is never filled; nothing is written to the URL, links,
 // cookies, storage, the dataLayer or a global. Blocks that use the name stay invisible (space kept, no reflow) until the
-// answer or the 300 ms mark, whichever is first, so the headline never visibly swaps.
+// answer or that mark, whichever is first, so the headline never visibly swaps.
 
 // The brand's short-link host that is not behind Cloudflare, so a bot challenge can never break the lookup.
 export const FIRST_NAME_HOSTS: Record<string, string> = {
@@ -70,7 +70,7 @@ export const FIRST_NAME_HOSTS: Record<string, string> = {
   'fitsyou.net': 'g.fitsyou.net',
   'blogcascade.com': 'go.blogcascade.com',
 }
-export const FIRST_NAME_BUDGET_MS = 300
+export const FIRST_NAME_BUDGET_MS = 450
 const FIRST_NAME_MARKER = /data-fill\s*=\s*["']?first-name["'\s>]/i
 
 const FN = '[data-fill="first-name"]'
