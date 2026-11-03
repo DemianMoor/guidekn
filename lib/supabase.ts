@@ -1,5 +1,6 @@
 import { createBrowserClient, createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
+import { personalizationEnabled, URL_PERSONALIZATION_KEY } from "@/lib/url-personalization/core";
 
 /**
  * For Client Components (browser-side).
@@ -136,6 +137,7 @@ export async function getAnalyticsSettings(): Promise<{
   keitaroScript: string;
   trackingDomain: string | null;
   trackingSource: string | null;
+  urlPersonalization: boolean;
 }> {
   let settings: Record<string, string> = {};
   try {
@@ -154,5 +156,8 @@ export async function getAnalyticsSettings(): Promise<{
     // uploaded. A settings-fetch failure lands here too, which is the safe side.
     trackingDomain: settings.tracking_domain || null,
     trackingSource: settings.tracking_source || null,
+    // URL personalization (lib/url-personalization/core.ts). Off unless explicitly
+    // "true"; a settings-fetch failure lands on off.
+    urlPersonalization: personalizationEnabled(settings[URL_PERSONALIZATION_KEY]),
   };
 }
