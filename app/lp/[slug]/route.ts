@@ -13,6 +13,7 @@ import {
 } from "@/lib/subid-guarantee/core";
 import { isValidPreviewToken } from "@/lib/lp-check-preview";
 import { injectPersonalization } from "@/lib/url-personalization/core";
+import { startEntryEtag, versionedUrl } from "@/lib/lp-storage-version/core";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +42,9 @@ export async function GET(
   );
 
   const supabase = createSupabaseAdmin();
+  // Lists the page's stored files alongside the row lookup below, so the entry
+  // fetch can carry its ETag (lib/lp-storage-version).
+  const entryEtag = startEntryEtag(supabase, slug);
   const pageQuery = supabase
     .from("landing_pages")
     .select(
@@ -59,7 +63,11 @@ export async function GET(
   const entryUrl = `${STORAGE_PUBLIC_BASE}/${slug}/${page.entry_file}`;
   let html: string;
   try {
-    const res = await fetch(entryUrl, { cache: "no-store" });
+    // The ETag in the address makes a fresh save a CDN miss; null fetches the
+    // plain address, as before.
+    const res = await fetch(versionedUrl(entryUrl, await entryEtag(page.entry_file)), {
+      cache: "no-store",
+    });
     if (!res.ok) {
       return new NextResponse("Landing page bundle missing", { status: 502 });
     }
